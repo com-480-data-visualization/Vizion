@@ -197,18 +197,27 @@ async function loadWorldMap() {
   // Colorbar stays fixed — outside the zoom group
   svg.append("g").attr("id", "colorbar-group");
 
-  // Zoom behaviour — no translateExtent so panning is free
+  // Zoom behaviour — Ctrl+scroll to zoom, drag to pan
   const zoom = d3.zoom()
     .scaleExtent([1, 8])
+    .filter(event => {
+      if (event.type === "wheel") return event.ctrlKey || event.metaKey;
+      return !event.button;
+    })
     .on("zoom", (event) => {
       mapGroup.attr("transform", event.transform);
     });
 
   svg.call(zoom);
 
-  // Double-click resets to full view
+  // Double-click: reset view + deselect country
   svg.on("dblclick.zoom", () => {
     svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+    state.selectedIso3 = null;
+    d3.selectAll(".country").classed("selected", false);
+    document.getElementById("analysis-section").style.display = "none";
+    document.getElementById("country-info").innerHTML =
+      `<p class="placeholder-msg">Click a country on the map to explore its trade.</p>`;
   });
 
   // Resize handler — reset zoom and reproject
