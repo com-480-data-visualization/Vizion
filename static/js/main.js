@@ -158,14 +158,12 @@ async function loadWorldMap() {
   ).then(r => r.json());
 
   const container = document.getElementById("map-container");
-  const W = container.clientWidth || 800;
+  const W = container.getBoundingClientRect().width || 800;
   const H = 480;
 
   const svg = d3.select("#world-map")
     .attr("width", W)
-    .attr("height", H)
-    .attr("viewBox", `0 0 ${W} ${H}`)
-    .attr("preserveAspectRatio", "xMidYMid meet");
+    .attr("height", H);
 
   projection = d3.geoNaturalEarth1()
     .scale(W / 6.3)
@@ -199,10 +197,9 @@ async function loadWorldMap() {
   // Colorbar stays fixed — outside the zoom group
   svg.append("g").attr("id", "colorbar-group");
 
-  // Zoom behaviour
+  // Zoom behaviour — no translateExtent so panning is free
   const zoom = d3.zoom()
     .scaleExtent([1, 8])
-    .translateExtent([[0, 0], [W, H]])
     .on("zoom", (event) => {
       mapGroup.attr("transform", event.transform);
     });
@@ -216,8 +213,8 @@ async function loadWorldMap() {
 
   // Resize handler — reset zoom and reproject
   window.addEventListener("resize", debounce(() => {
-    const nW = container.clientWidth;
-    svg.attr("width", nW).attr("viewBox", `0 0 ${nW} ${H}`);
+    const nW = container.getBoundingClientRect().width;
+    svg.attr("width", nW).attr("height", H);
     projection.scale(nW / 6.3).translate([nW / 2, H / 2]);
     path = d3.geoPath().projection(projection);
     mapGroup.select(".graticule").attr("d", path(d3.geoGraticule()()));
