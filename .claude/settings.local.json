@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show *)",
+      "Bash(python build_data.py)",
+      "Bash(curl -s \"https://global-trade-viz.onrender.com/api/meta\")",
+      "Bash(curl -s \"https://global-trade-viz.onrender.com/\")",
+      "Bash(git mv *)",
+      "Bash(git -c user.name=\"charbelraffoul\" -c user.email=\"charbelraffoul2004@gmail.com\" commit -m \"fix: replace app.py with Flask/D3 server \\(matches gunicorn app:server on Render\\)\")",
+      "Bash(pip install *)",
+      "Bash(git -c user.name=\"charbelraffoul\" -c user.email=\"charbelraffoul2004@gmail.com\" commit -m \"fix: Sankey circular links, layout, animations, bundled JS deps, complete country lookup\")",
+      "WebFetch(domain:vizion-lzz6.onrender.com)",
+      "Bash(curl -I \"https://vizion-lzz6.onrender.com/static/js/topojson.min.js\")",
+      "Bash(curl -s \"https://vizion-lzz6.onrender.com/static/js/topojson.min.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://vizion-lzz6.onrender.com/static/js/main.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://vizion-lzz6.onrender.com/static/js/d3.min.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://vizion-lzz6.onrender.com/static/js/topojson.min.js\")",
+      "WebFetch(domain:unpkg.com)",
+      "Bash(git rm *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\charb\\.claude\\projects\\c--Users-charb-OneDrive-Desktop-MA2-dataViz-Vizion\\memory"
+    ]
+  }
+}

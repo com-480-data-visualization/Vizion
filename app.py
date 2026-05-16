@@ -157,6 +157,36 @@ def race(commodity):
                     for r in rows])
 
 
+# ── API: disruption — who depends on a given partner? ────────────────────────
+
+@server.route("/api/disruption/<commodity>/<partner>/<int:year>")
+def disruption_data(commodity, partner, year):
+    if commodity not in DATA:
+        return jsonify([])
+    panel = DATA[commodity]["panel"]
+    suffix = f"_{year}"
+    result = []
+    for key, val in panel.items():
+        if not key.endswith(suffix):
+            continue
+        iso3 = key[: -len(suffix)]
+        total_imp = val.get("imp") or 0
+        if total_imp <= 0:
+            continue
+        partner_val = next(
+            (x["v"] for x in val.get("ti", []) if x["p"] == partner), None
+        )
+        if partner_val is None:
+            continue
+        result.append({
+            "iso3":  iso3,
+            "name":  val["n"],
+            "share": round(partner_val / total_imp * 100, 2),
+        })
+    result.sort(key=lambda x: -x["share"])
+    return jsonify(result)
+
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

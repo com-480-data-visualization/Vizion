@@ -16,6 +16,7 @@ const state = {
   raceTimer: null,
   raceYearIdx: 0,
   commodityColor: "#3b82f6",
+  disruptionPartner: null, // non-null = disruption mode active
 };
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -138,6 +139,9 @@ function setupControls(meta) {
   document.getElementById("compare-select").addEventListener("change", () => {
     if (state.selectedIso3) drawCompare();
   });
+
+  // Disruption exit
+  document.getElementById("disruption-exit-btn").addEventListener("click", deactivateDisruption);
 }
 
 function refreshActiveTab() {
@@ -237,11 +241,12 @@ async function loadWorldMap() {
 
 // ── Map refresh ───────────────────────────────────────────────────────────────
 async function refreshMap() {
+  if (state.disruptionPartner) { await refreshDisruptionMap(); return; }
+
   const data = await fetch(
     `/api/map/${state.commodity}/${state.year}/${state.flow}`
   ).then(r => r.json());
 
-  // Build lookup iso3 → value
   const valMap = {};
   data.forEach(d => { valMap[d.reporter_iso3] = d.value; });
 
@@ -258,8 +263,6 @@ async function refreshMap() {
   state._colorMax   = colorMax;
   state._valMap     = valMap;
 
-  // Need a mapping from numeric country id → iso3.
-  // We use a pre-built lookup embedded here for the 110m dataset.
   d3.select("#countries-group").selectAll("path")
     .attr("fill", d => {
       const iso3 = numericToIso3(d.id);
@@ -267,17 +270,58 @@ async function refreshMap() {
       return v ? colorScale(v) : "#334155";
     })
     .classed("selected", d => numericToIso3(d.id) === state.selectedIso3)
-    .classed("no-data", d => {
-      const iso3 = numericToIso3(d.id);
-      return !iso3 || !valMap[iso3];
-    })
+    .classed("no-data", d => { const iso3 = numericToIso3(d.id); return !iso3 || !valMap[iso3]; })
     .attr("visibility", d => numericToIso3(d.id) ? null : "hidden");
 
   const W = +d3.select("#world-map").attr("width") || 800;
   renderColorbar(d3.select("#world-map"), colorScale, colorMax, W, 480);
 }
 
-function renderColorbar(svg, colorScale, colorMax, W, H) {
+// ── Disruption map ────────────────────────────────────────────────────────────
+async function refreshDisruptionMap() {
+  const partner = state.disruptionPartner;
+  const data = await fetch(
+    `/api/disruption/${state.commodity}/${encodeURIComponent(partner)}/${state.year}`
+  ).then(r => r.json());
+
+  const shareMap = {};
+  data.forEach(d => { shareMap[d.iso3] = d.share; });
+  state._disruptionShareMap = shareMap;
+
+  const colorScale = d3.scaleSequential()
+    .domain([0, 100])
+    .interpolator(d3.interpolateReds)
+    .clamp(true);
+
+  d3.select("#countries-group").selectAll("path")
+    .attr("fill", d => {
+      const iso3 = numericToIso3(d.id);
+      const v = iso3 ? shareMap[iso3] : null;
+      return v ? colorScale(v) : "#334155";
+    })
+    .classed("selected", d => numericToIso3(d.id) === state.selectedIso3)
+    .classed("no-data", d => { const iso3 = numericToIso3(d.id); return !iso3 || !shareMap[iso3]; })
+    .attr("visibility", d => numericToIso3(d.id) ? null : "hidden");
+
+  const W = +d3.select("#world-map").attr("width") || 800;
+  renderColorbar(d3.select("#world-map"), colorScale, 100, W, 480, `% imports from ${partner}`);
+}
+
+async function activateDisruption(partner) {
+  state.disruptionPartner = partner;
+  document.getElementById("disruption-banner-text").textContent =
+    `⚡ Disruption: ${partner} removed as ${state.meta.commodities[state.commodity].label} supplier`;
+  document.getElementById("disruption-banner").style.display = "flex";
+  await refreshDisruptionMap();
+}
+
+function deactivateDisruption() {
+  state.disruptionPartner = null;
+  document.getElementById("disruption-banner").style.display = "none";
+  refreshMap();
+}
+
+function renderColorbar(svg, colorScale, colorMax, W, H, label) {
   const g = svg.select("#colorbar-group");
   g.selectAll("*").remove();
 
@@ -297,7 +341,7 @@ function renderColorbar(svg, colorScale, colorMax, W, H) {
   g.append("text").attr("x", x0).attr("y", y0 - 4).text("0")
     .attr("fill", "#94a3b8").attr("font-size", 10);
   g.append("text").attr("x", x0 + bW).attr("y", y0 - 4)
-    .text(fmtUSD(colorMax)).attr("text-anchor", "end")
+    .text(label || fmtUSD(colorMax)).attr("text-anchor", "end")
     .attr("fill", "#94a3b8").attr("font-size", 10);
 }
 
@@ -311,9 +355,16 @@ function getCountryName(iso3) {
 
 function onMapMouseover(event, d) {
   const iso3 = numericToIso3(d.id);
-  const val  = iso3 ? state._valMap?.[iso3] : null;
-  if (!iso3 || !val) return;
-  tooltip.innerHTML = `<strong>${getCountryName(iso3)}</strong><br>${fmtUSD(val)}`;
+  if (!iso3) return;
+  if (state.disruptionPartner) {
+    const share = state._disruptionShareMap?.[iso3];
+    if (!share) return;
+    tooltip.innerHTML = `<strong>${getCountryName(iso3)}</strong><br>${share.toFixed(1)}% from ${state.disruptionPartner}`;
+  } else {
+    const val = state._valMap?.[iso3];
+    if (!val) return;
+    tooltip.innerHTML = `<strong>${getCountryName(iso3)}</strong><br>${fmtUSD(val)}`;
+  }
   tooltip.classList.add("visible");
 }
 
@@ -699,7 +750,8 @@ async function drawDisruption() {
       <select id="disruption-partner-sel">
         ${imports.map(d => `<option value="${d.partner}"${d.partner === prevVal ? " selected" : ""}>${d.partner}</option>`).join("")}
       </select>
-      <label class="control-label">as an import source</label>
+      <label class="control-label">as a supplier</label>
+      <button id="disruption-map-btn" class="play-btn" style="margin-left:8px;">⚡ Show on map</button>
     </div>
     <div id="disruption-annotation"></div>
     <svg id="disruption-chart"></svg>
@@ -707,6 +759,10 @@ async function drawDisruption() {
 
   el.querySelector("#disruption-partner-sel")
     .addEventListener("change", () => _renderDisruption(imports, totalImp, countryName));
+  el.querySelector("#disruption-map-btn")
+    .addEventListener("click", () => activateDisruption(
+      el.querySelector("#disruption-partner-sel").value
+    ));
 
   _renderDisruption(imports, totalImp, countryName);
 }
