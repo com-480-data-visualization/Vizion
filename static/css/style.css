@@ -161,9 +161,13 @@ input[type="range"] {
   transition: stroke 0.1s, stroke-width 0.1s;
 }
 
-.country:hover {
+.country:not(.no-data):hover {
   stroke: #e2e8f0;
   stroke-width: 1.5px;
+}
+
+.country.no-data {
+  cursor: default;
 }
 
 .country.selected {

@@ -239,7 +239,11 @@ async function refreshMap() {
       const v = iso3 ? valMap[iso3] : null;
       return v ? colorScale(v) : "#334155";
     })
-    .classed("selected", d => numericToIso3(d.id) === state.selectedIso3);
+    .classed("selected", d => numericToIso3(d.id) === state.selectedIso3)
+    .classed("no-data", d => {
+      const iso3 = numericToIso3(d.id);
+      return !iso3 || !valMap[iso3];
+    });
 
   const W = +d3.select("#world-map").attr("width") || 800;
   renderColorbar(d3.select("#world-map"), colorScale, colorMax, W, 480);
@@ -272,19 +276,21 @@ function renderColorbar(svg, colorScale, colorMax, W, H) {
 // ── Map tooltips & click ──────────────────────────────────────────────────────
 const tooltip = document.getElementById("map-tooltip");
 
-function getCountryName(d) {
-  // Try to get reporter name from data via iso3
-  const iso3 = numericToIso3(d.id);
-  if (!iso3) return `Country ${d.id}`;
-  // Try valMap for a name hint — fall back to iso3
-  return iso3;
+function getCountryName(iso3) {
+  const entry = state.meta?.countries?.find(c => c.iso3 === iso3);
+  return entry ? entry.name : iso3;
 }
 
 function onMapMouseover(event, d) {
   const iso3 = numericToIso3(d.id);
-  const val  = iso3 ? state._valMap?.[iso3] : null;
-  const name = iso3 || `Country ${d.id}`;
-  tooltip.innerHTML = `<strong>${name}</strong>${val ? `<br>${fmtUSD(val)}` : ""}`;
+  if (!iso3) return;
+  const val  = state._valMap?.[iso3];
+  const name = getCountryName(iso3);
+  if (val) {
+    tooltip.innerHTML = `<strong>${name}</strong><br>${fmtUSD(val)}`;
+  } else {
+    tooltip.innerHTML = `<strong>${name}</strong><br><span style="color:var(--muted);font-size:11px">No data</span>`;
+  }
   tooltip.classList.add("visible");
 }
 
@@ -300,7 +306,7 @@ function onMapMouseout() {
 
 async function onMapClick(event, d) {
   const iso3 = numericToIso3(d.id);
-  if (!iso3) return;
+  if (!iso3 || !state._valMap?.[iso3]) return;
   state.selectedIso3 = iso3;
 
   // Highlight
