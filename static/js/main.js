@@ -243,7 +243,8 @@ async function refreshMap() {
     .classed("no-data", d => {
       const iso3 = numericToIso3(d.id);
       return !iso3 || !valMap[iso3];
-    });
+    })
+    .attr("visibility", d => numericToIso3(d.id) ? null : "hidden");
 
   const W = +d3.select("#world-map").attr("width") || 800;
   renderColorbar(d3.select("#world-map"), colorScale, colorMax, W, 480);
