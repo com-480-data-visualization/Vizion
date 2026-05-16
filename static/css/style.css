@@ -148,6 +148,14 @@ input[type="range"] {
 }
 
 #world-map {
+  cursor: grab;
+}
+
+#world-map:active {
+  cursor: grabbing;
+}
+
+#world-map {
   width: 100%;
   height: 480px;
   display: block;

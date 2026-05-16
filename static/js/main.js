@@ -173,15 +173,18 @@ async function loadWorldMap() {
 
   path = d3.geoPath().projection(projection);
 
+  // Map group — everything inside here zooms/pans
+  const mapGroup = svg.append("g").attr("id", "map-group");
+
   // Graticule
-  svg.append("path")
+  mapGroup.append("path")
     .datum(d3.geoGraticule()())
     .attr("class", "graticule")
     .attr("d", path);
 
   // Countries
   const countries = topojson.feature(worldGeo, worldGeo.objects.countries);
-  svg.append("g").attr("id", "countries-group")
+  mapGroup.append("g").attr("id", "countries-group")
     .selectAll("path")
     .data(countries.features)
     .join("path")
@@ -193,17 +196,33 @@ async function loadWorldMap() {
     .on("mouseout",  onMapMouseout)
     .on("click",     onMapClick);
 
-  // Colorbar group placeholder
+  // Colorbar stays fixed — outside the zoom group
   svg.append("g").attr("id", "colorbar-group");
 
-  // Resize handler
+  // Zoom behaviour
+  const zoom = d3.zoom()
+    .scaleExtent([1, 8])
+    .translateExtent([[0, 0], [W, H]])
+    .on("zoom", (event) => {
+      mapGroup.attr("transform", event.transform);
+    });
+
+  svg.call(zoom);
+
+  // Double-click resets to full view
+  svg.on("dblclick.zoom", () => {
+    svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+  });
+
+  // Resize handler — reset zoom and reproject
   window.addEventListener("resize", debounce(() => {
     const nW = container.clientWidth;
     svg.attr("width", nW).attr("viewBox", `0 0 ${nW} ${H}`);
     projection.scale(nW / 6.3).translate([nW / 2, H / 2]);
     path = d3.geoPath().projection(projection);
-    svg.select(".graticule").attr("d", path(d3.geoGraticule()()));
+    mapGroup.select(".graticule").attr("d", path(d3.geoGraticule()()));
     svg.selectAll(".country").attr("d", path);
+    svg.call(zoom.transform, d3.zoomIdentity);
     renderColorbar(svg, state._colorScale, state._colorMax, nW, H);
   }, 200));
 }
