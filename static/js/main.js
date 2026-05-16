@@ -53,6 +53,7 @@ function buildCommodityNav(meta) {
   Object.entries(meta.commodities).forEach(([key, info]) => {
     const pill = document.createElement("span");
     pill.className = "comm-pill" + (key === state.commodity ? " active" : "");
+    pill.dataset.key = key;
     pill.textContent = info.label;
     pill.style.color = info.color;
     if (key === state.commodity) pill.style.borderColor = info.color;
@@ -64,8 +65,8 @@ function buildCommodityNav(meta) {
 function selectCommodity(key) {
   state.commodity = key;
   state.commodityColor = state.meta.commodities[key].color;
-  document.querySelectorAll(".comm-pill").forEach((p, i) => {
-    const k = state.meta.available[i];
+  document.querySelectorAll(".comm-pill").forEach(p => {
+    const k = p.dataset.key;
     p.classList.toggle("active", k === key);
     p.style.borderColor = k === key ? state.meta.commodities[k].color : "";
   });
