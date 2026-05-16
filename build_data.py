@@ -212,14 +212,17 @@ def build_sankey(cs, pf):
                 + [{"name": center_name, "type": "center"}]
                 + [{"name": p, "type": "export"} for p in exp_partners]
             )
-            node_idx = {n["name"]: i for i, n in enumerate(nodes)}
-            center_idx = node_idx[center_name]
+            # Use positional indices — avoids key collision when a country
+            # appears in both imports and exports (would create circular links).
+            center_idx = len(imp_partners)
+            imp_idx = {p: i for i, p in enumerate(imp_partners)}
+            exp_idx = {p: center_idx + 1 + i for i, p in enumerate(exp_partners)}
 
             links = []
             for p, v in imp_df.items():
-                links.append({"s": node_idx[p], "t": center_idx, "v": clean(v), "type": "import"})
+                links.append({"s": imp_idx[p], "t": center_idx, "v": clean(v), "type": "import"})
             for p, v in exp_df.items():
-                links.append({"s": center_idx, "t": node_idx[p], "v": clean(v), "type": "export"})
+                links.append({"s": center_idx, "t": exp_idx[p], "v": clean(v), "type": "export"})
 
             result[f"{iso3}_{yr}"] = {
                 "nodes":  nodes,

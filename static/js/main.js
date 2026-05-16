@@ -398,7 +398,7 @@ async function drawHistory() {
   ).then(r => r.json());
 
   const el = document.getElementById("tab-history");
-  const W = el.clientWidth - 60 || 700;
+  const W = el.clientWidth > 0 ? el.clientWidth - 60 : 700;
   const H = 280;
   const margin = { top: 20, right: 30, bottom: 40, left: 70 };
   const iW = W - margin.left - margin.right;
@@ -466,12 +466,14 @@ async function drawSankey() {
   ).then(r => r.json());
 
   const el = document.getElementById("tab-sankey");
-  const W = el.clientWidth - 32 || 700;
-  const H = 380;
-  const margin = { top: 16, right: 140, bottom: 16, left: 140 };
+  const W = Math.max(el.getBoundingClientRect().width - 32, 700);
+  const H = 500;
+  const margin = { top: 16, right: 180, bottom: 16, left: 180 };
 
   const svg = d3.select("#sankey-chart")
-    .attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+    .attr("width", W)
+    .attr("height", H)
+    .attr("viewBox", `0 0 ${W} ${H}`);
   svg.selectAll("*").remove();
 
   if (!data.nodes.length) {
@@ -494,21 +496,38 @@ async function drawSankey() {
   // Links
   const linkColor = l => l.type === "import" ? "var(--imp)" : "var(--exp)";
 
-  g.append("g").selectAll("path")
+  const linkPaths = g.append("g").selectAll("path")
     .data(links)
     .join("path")
     .attr("class", "sankey-link")
     .attr("d", d3.sankeyLinkHorizontal())
     .attr("stroke", d => linkColor(d))
     .attr("stroke-width", d => Math.max(1, d.width))
-    .append("title")
+    .attr("opacity", 0);
+
+  linkPaths.append("title")
     .text(d => `${d.source.name} → ${d.target.name}\n${fmtUSD(d.value)}`);
+
+  // Animate links in with flow effect using stroke-dasharray
+  linkPaths.each(function() {
+    const len = this.getTotalLength();
+    d3.select(this)
+      .attr("stroke-dasharray", `${len} ${len}`)
+      .attr("stroke-dashoffset", len)
+      .transition().duration(900).ease(d3.easeCubicOut)
+      .attr("stroke-dashoffset", 0)
+      .attr("opacity", 0.5)
+      .on("end", function() {
+        d3.select(this).attr("stroke-dasharray", null).attr("stroke-dashoffset", null);
+      });
+  });
 
   // Nodes
   const nodeG = g.append("g").selectAll("g")
     .data(nodes)
     .join("g")
-    .attr("class", "sankey-node");
+    .attr("class", "sankey-node")
+    .attr("opacity", 0);
 
   nodeG.append("rect")
     .attr("x", d => d.x0)
@@ -522,14 +541,17 @@ async function drawSankey() {
     .append("title")
     .text(d => `${d.name}\n${fmtUSD(d.value)}`);
 
-  // Labels
+  // Labels — imports label LEFT of bar, exports label RIGHT of bar
   nodeG.append("text")
     .attr("class", "sankey-label")
-    .attr("x", d => d.x0 < W / 2 ? d.x1 + 6 : d.x0 - 6)
+    .attr("x", d => d.type === "import" ? d.x0 - 6 : d.type === "export" ? d.x1 + 6 : d.x0 + (d.x1 - d.x0) / 2)
     .attr("y", d => (d.y0 + d.y1) / 2)
     .attr("dy", "0.35em")
-    .attr("text-anchor", d => d.x0 < W / 2 ? "start" : "end")
-    .text(d => d.name.length > 18 ? d.name.slice(0, 16) + "…" : d.name);
+    .attr("text-anchor", d => d.type === "import" ? "end" : d.type === "export" ? "start" : "middle")
+    .text(d => d.name.length > 20 ? d.name.slice(0, 18) + "…" : d.name);
+
+  // Fade nodes in
+  nodeG.transition().duration(600).delay(300).attr("opacity", 1);
 }
 
 // ── Dependency ────────────────────────────────────────────────────────────────
@@ -539,7 +561,7 @@ async function drawDependency() {
   ).then(r => r.json());
 
   const el = document.getElementById("tab-dependency");
-  const W = el.clientWidth - 60 || 700;
+  const W = el.clientWidth > 0 ? el.clientWidth - 60 : 700;
   const H = 300;
   const margin = { top: 20, right: 100, bottom: 40, left: 56 };
   const iW = W - margin.left - margin.right;
@@ -674,7 +696,7 @@ async function drawCompare() {
 
 function drawCompareLine(selector, tsA, tsB, nameA, nameB, colorA, colorB) {
   const el = document.getElementById("tab-compare");
-  const W = el.clientWidth - 60 || 700;
+  const W = el.clientWidth > 0 ? el.clientWidth - 60 : 700;
   const H = 260;
   const margin = { top: 20, right: 30, bottom: 40, left: 70 };
   const iW = W - margin.left - margin.right;
@@ -722,7 +744,7 @@ function drawCompareLine(selector, tsA, tsB, nameA, nameB, colorA, colorB) {
 
 function drawCompareDep(selector, depA, depB, nameA, nameB, colorA, colorB) {
   const el = document.getElementById("tab-compare");
-  const W = el.clientWidth - 60 || 700;
+  const W = el.clientWidth > 0 ? el.clientWidth - 60 : 700;
   const H = 200;
   const margin = { top: 16, right: 100, bottom: 40, left: 56 };
   const iW = W - margin.left - margin.right;
@@ -955,37 +977,7 @@ function buildCompareSelect(meta) {
 // ── Numeric country ID → ISO3 lookup ─────────────────────────────────────────
 // The 110m topojson uses ISO 3166-1 numeric codes. We map them to alpha-3.
 // This is a compact subset covering all UN Comtrade reporters.
-const NUMERIC_TO_ISO3 = {
-  4:"AFG",8:"ALB",12:"DZA",24:"AGO",32:"ARG",36:"AUS",40:"AUT",50:"BGD",
-  56:"BEL",64:"BTN",68:"BOL",76:"BRA",100:"BGR",104:"MMR",116:"KHM",
-  120:"CMR",124:"CAN",144:"LKA",152:"CHL",156:"CHN",170:"COL",180:"COD",
-  188:"CRI",191:"HRV",192:"CUB",196:"CYP",203:"CZE",208:"DNK",218:"ECU",
-  818:"EGY",222:"SLV",231:"ETH",246:"FIN",250:"FRA",266:"GAB",276:"DEU",
-  288:"GHA",300:"GRC",320:"GTM",332:"HTI",340:"HND",348:"HUN",356:"IND",
-  360:"IDN",364:"IRN",368:"IRQ",372:"IRL",376:"ISR",380:"ITA",388:"JAM",
-  392:"JPN",400:"JOR",398:"KAZ",404:"KEN",408:"PRK",410:"KOR",414:"KWT",
-  418:"LAO",422:"LBN",430:"LBR",434:"LBY",442:"LUX",484:"MEX",504:"MAR",
-  508:"MOZ",516:"NAM",524:"NPL",528:"NLD",540:"NCL",554:"NZL",558:"NIC",
-  566:"NGA",578:"NOR",586:"PAK",591:"PAN",598:"PNG",600:"PRY",604:"PER",
-  608:"PHL",616:"POL",620:"PRT",630:"PRI",634:"QAT",642:"ROU",643:"RUS",
-  646:"RWA",682:"SAU",686:"SEN",694:"SLE",703:"SVK",705:"SVN",706:"SOM",
-  710:"ZAF",724:"ESP",729:"SDN",752:"SWE",756:"CHE",760:"SYR",764:"THA",
-  768:"TGO",780:"TTO",788:"TUN",792:"TUR",800:"UGA",804:"UKR",784:"ARE",
-  826:"GBR",840:"USA",858:"URY",862:"VEN",704:"VNM",887:"YEM",894:"ZMB",
-  716:"ZWE",7:"RUS",792:"TUR",450:"MDG",466:"MLI",478:"MRT",480:"MUS",
-  454:"MWI",462:"MDV",458:"MYS",496:"MNG",504:"MAR",528:"NLD",
-  148:"TCD",174:"COM",178:"COG",184:"COK",262:"DJI",232:"ERI",238:"FLK",
-  242:"FJI",260:"ATF",268:"GEO",270:"GMB",324:"GIN",308:"GRD",312:"GLP",
-  316:"GUM",624:"GNB",328:"GUY",334:"HMD",352:"ISL",384:"CIV",388:"JAM",
-  417:"KGZ",426:"LSO",440:"LTU",428:"LVA",434:"LBY",446:"MAC",474:"MTQ",
-  484:"MEX",492:"MCO",498:"MDA",500:"MSR",520:"NRU",532:"ANT",548:"VUT",
-  570:"NIU",574:"NFK",583:"FSM",584:"MHL",585:"PLW",586:"PAK",608:"PHL",
-  612:"PCN",620:"PRT",626:"TLS",638:"REU",654:"SHN",659:"KNA",660:"AIA",
-  662:"LCA",666:"SPM",670:"VCT",678:"STP",688:"SRB",690:"SYC",740:"SUR",
-  744:"SJM",748:"SWZ",762:"TJK",772:"TKL",776:"TON",798:"TUV",807:"MKD",
-  831:"GGY",832:"JEY",833:"IMN",850:"VIR",860:"UZB",876:"WLF",882:"WSM",
-  887:"YEM",894:"ZMB",
-};
+const NUMERIC_TO_ISO3 = {4:"AFG",8:"ALB",10:"ATA",12:"DZA",16:"ASM",20:"AND",24:"AGO",28:"ATG",31:"AZE",32:"ARG",36:"AUS",40:"AUT",44:"BHS",48:"BHR",50:"BGD",51:"ARM",52:"BRB",56:"BEL",60:"BMU",64:"BTN",68:"BOL",70:"BIH",72:"BWA",74:"BVT",76:"BRA",84:"BLZ",86:"IOT",90:"SLB",92:"VGB",96:"BRN",100:"BGR",104:"MMR",108:"BDI",112:"BLR",116:"KHM",120:"CMR",124:"CAN",132:"CPV",136:"CYM",140:"CAF",144:"LKA",148:"TCD",152:"CHL",156:"CHN",158:"TWN",162:"CXR",166:"CCK",170:"COL",174:"COM",175:"MYT",178:"COG",180:"COD",184:"COK",188:"CRI",191:"HRV",192:"CUB",196:"CYP",203:"CZE",204:"BEN",208:"DNK",212:"DMA",214:"DOM",218:"ECU",222:"SLV",226:"GNQ",231:"ETH",232:"ERI",233:"EST",234:"FRO",238:"FLK",239:"SGS",242:"FJI",246:"FIN",248:"ALA",250:"FRA",254:"GUF",258:"PYF",260:"ATF",262:"DJI",266:"GAB",268:"GEO",270:"GMB",275:"PSE",276:"DEU",288:"GHA",292:"GIB",296:"KIR",300:"GRC",304:"GRL",308:"GRD",312:"GLP",316:"GUM",320:"GTM",324:"GIN",328:"GUY",332:"HTI",334:"HMD",336:"VAT",340:"HND",344:"HKG",348:"HUN",352:"ISL",356:"IND",360:"IDN",364:"IRN",368:"IRQ",372:"IRL",376:"ISR",380:"ITA",384:"CIV",388:"JAM",392:"JPN",398:"KAZ",400:"JOR",404:"KEN",408:"PRK",410:"KOR",414:"KWT",417:"KGZ",418:"LAO",422:"LBN",426:"LSO",428:"LVA",430:"LBR",434:"LBY",438:"LIE",440:"LTU",442:"LUX",446:"MAC",450:"MDG",454:"MWI",458:"MYS",462:"MDV",466:"MLI",470:"MLT",474:"MTQ",478:"MRT",480:"MUS",484:"MEX",492:"MCO",496:"MNG",498:"MDA",499:"MNE",500:"MSR",504:"MAR",508:"MOZ",512:"OMN",516:"NAM",520:"NRU",524:"NPL",528:"NLD",531:"CUW",533:"ABW",534:"SXM",535:"BES",540:"NCL",548:"VUT",554:"NZL",558:"NIC",562:"NER",566:"NGA",570:"NIU",574:"NFK",578:"NOR",580:"MNP",581:"UMI",583:"FSM",584:"MHL",585:"PLW",586:"PAK",591:"PAN",598:"PNG",600:"PRY",604:"PER",608:"PHL",612:"PCN",616:"POL",620:"PRT",624:"GNB",626:"TLS",630:"PRI",634:"QAT",638:"REU",642:"ROU",643:"RUS",646:"RWA",652:"BLM",654:"SHN",659:"KNA",660:"AIA",662:"LCA",663:"MAF",666:"SPM",670:"VCT",674:"SMR",678:"STP",682:"SAU",686:"SEN",688:"SRB",690:"SYC",694:"SLE",702:"SGP",703:"SVK",704:"VNM",705:"SVN",706:"SOM",710:"ZAF",716:"ZWE",724:"ESP",728:"SSD",729:"SDN",732:"ESH",740:"SUR",744:"SJM",748:"SWZ",752:"SWE",756:"CHE",760:"SYR",762:"TJK",764:"THA",768:"TGO",772:"TKL",776:"TON",780:"TTO",784:"ARE",788:"TUN",792:"TUR",795:"TKM",796:"TCA",798:"TUV",800:"UGA",804:"UKR",807:"MKD",818:"EGY",826:"GBR",831:"GGY",832:"JEY",833:"IMN",834:"TZA",840:"USA",850:"VIR",854:"BFA",858:"URY",860:"UZB",862:"VEN",876:"WLF",882:"WSM",887:"YEM",894:"ZMB"};
 
 function numericToIso3(id) {
   return NUMERIC_TO_ISO3[+id] || null;

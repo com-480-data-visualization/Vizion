@@ -137,12 +137,12 @@ input[type="range"] {
 /* ── Main area (map + side panel) ──────────────────────────────────────────── */
 #main-area {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 #map-container {
-  flex: 2;
-  min-width: 500px;
+  flex: 1 1 0;
+  min-width: 0;
   position: relative;
   background: var(--bg);
 }
@@ -196,9 +196,8 @@ input[type="range"] {
 
 /* ── Side panel ────────────────────────────────────────────────────────────── */
 #side-panel {
-  flex: 1;
-  min-width: 320px;
-  max-width: 440px;
+  flex: 0 0 380px;
+  width: 380px;
   padding: 16px 20px;
   background: var(--panel);
   border-left: 1px solid var(--border);
