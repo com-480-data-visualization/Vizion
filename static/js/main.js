@@ -283,14 +283,9 @@ function getCountryName(iso3) {
 
 function onMapMouseover(event, d) {
   const iso3 = numericToIso3(d.id);
-  if (!iso3) return;
-  const val  = state._valMap?.[iso3];
-  const name = getCountryName(iso3);
-  if (val) {
-    tooltip.innerHTML = `<strong>${name}</strong><br>${fmtUSD(val)}`;
-  } else {
-    tooltip.innerHTML = `<strong>${name}</strong><br><span style="color:var(--muted);font-size:11px">No data</span>`;
-  }
+  const val  = iso3 ? state._valMap?.[iso3] : null;
+  if (!iso3 || !val) return;
+  tooltip.innerHTML = `<strong>${getCountryName(iso3)}</strong><br>${fmtUSD(val)}`;
   tooltip.classList.add("visible");
 }
 
