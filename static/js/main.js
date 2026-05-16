@@ -154,7 +154,7 @@ let projection, path, worldGeo;
 async function loadWorldMap() {
   // Use Natural Earth from cdn.jsdelivr.net
   worldGeo = await fetch(
-    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+    "https://unpkg.com/world-atlas@2/countries-110m.json"
   ).then(r => r.json());
 
   const container = document.getElementById("map-container");
