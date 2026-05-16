@@ -161,7 +161,7 @@ input[type="range"] {
   transition: stroke 0.1s, stroke-width 0.1s;
 }
 
-.country:not(.no-data):hover {
+.country:not(.no-data):not(.selected):hover {
   stroke: #e2e8f0;
   stroke-width: 1.5px;
 }
