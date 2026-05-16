@@ -494,6 +494,39 @@ input[type="range"] {
 /* ── Colorbar ──────────────────────────────────────────────────────────────── */
 #colorbar-group text { fill: var(--muted); font-size: 10px; }
 
+/* ── Disruption tab ────────────────────────────────────────────────────────── */
+.disruption-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0 4px;
+  flex-wrap: wrap;
+}
+
+#disruption-partner-sel {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 160px;
+}
+
+.disruption-note {
+  font-size: 13px;
+  line-height: 1.6;
+  background: rgba(59,130,246,0.08);
+  border-left: 3px solid var(--exp);
+  padding: 10px 14px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  margin: 10px 0 14px;
+  color: var(--text);
+}
+
+#disruption-chart { width: 100%; display: block; }
+
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   #app-header, #controls-bar, #movers-section, #race-section, #analysis-section {

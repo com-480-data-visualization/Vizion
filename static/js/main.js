@@ -146,6 +146,7 @@ function refreshActiveTab() {
   if (activeTab === "history")    drawHistory();
   if (activeTab === "sankey")     drawSankey();
   if (activeTab === "dependency") drawDependency();
+  if (activeTab === "disruption") drawDisruption();
   if (activeTab === "compare")    drawCompare();
 }
 
@@ -671,6 +672,133 @@ async function drawDependency() {
   document.getElementById("dependency-legend").innerHTML = `
     <div class="legend-item"><div class="legend-swatch" style="background:${color}"></div>Top-1 partner share</div>
     <div class="legend-item"><div class="legend-swatch" style="background:${color};opacity:0.3"></div>Top-3 band</div>`;
+}
+
+// ── Disruption simulator ──────────────────────────────────────────────────────
+async function drawDisruption() {
+  const el = document.getElementById("tab-disruption");
+
+  const panel = await fetch(
+    `/api/country/${state.commodity}/${state.selectedIso3}/${state.year}`
+  ).then(r => r.json());
+
+  if (panel.no_data || !panel.top_imports?.length) {
+    el.innerHTML = `<p class="placeholder-msg" style="margin-top:30px">No import data available for ${state.year}.</p>`;
+    return;
+  }
+
+  const imports = panel.top_imports.slice(0, 8);
+  const totalImp = panel.total_imports;
+  const countryName = panel.name;
+
+  // Rebuild controls each time (country/year/commodity may have changed)
+  const prevVal = el.querySelector("#disruption-partner-sel")?.value;
+  el.innerHTML = `
+    <div class="disruption-controls">
+      <label class="control-label">Simulate removing</label>
+      <select id="disruption-partner-sel">
+        ${imports.map(d => `<option value="${d.partner}"${d.partner === prevVal ? " selected" : ""}>${d.partner}</option>`).join("")}
+      </select>
+      <label class="control-label">as an import source</label>
+    </div>
+    <div id="disruption-annotation"></div>
+    <svg id="disruption-chart"></svg>
+  `;
+
+  el.querySelector("#disruption-partner-sel")
+    .addEventListener("change", () => _renderDisruption(imports, totalImp, countryName));
+
+  _renderDisruption(imports, totalImp, countryName);
+}
+
+function _renderDisruption(imports, totalImp, countryName) {
+  const removed = document.getElementById("disruption-partner-sel").value;
+  const removedVal = imports.find(d => d.partner === removed)?.trade_value_usd ?? 0;
+  const newTotal = Math.max(totalImp - removedVal, 1);
+
+  const rows = imports.map(d => ({
+    partner: d.partner,
+    isRemoved: d.partner === removed,
+    before: d.trade_value_usd / totalImp * 100,
+    after:  d.partner === removed ? 0 : d.trade_value_usd / newTotal * 100,
+  }));
+
+  // Annotation
+  const beforeTop1 = rows[0];
+  const afterTop1  = rows.filter(d => !d.isRemoved).sort((a, b) => b.after - a.after)[0];
+  const biggestGainer = rows.filter(d => !d.isRemoved)
+    .sort((a, b) => (b.after - b.before) - (a.after - a.before))[0];
+
+  let note = `Removing <strong>${removed}</strong> `;
+  if (beforeTop1.isRemoved) {
+    note += `(#1 supplier at ${beforeTop1.before.toFixed(1)}%) shifts the top position to `
+          + `<strong>${afterTop1.partner}</strong> at <strong>${afterTop1.after.toFixed(1)}%</strong>`;
+  } else {
+    note += `raises the top-partner (<strong>${afterTop1.partner}</strong>) share `
+          + `from <strong>${beforeTop1.before.toFixed(1)}%</strong> → <strong>${afterTop1.after.toFixed(1)}%</strong>`;
+  }
+  if (biggestGainer && biggestGainer.partner !== afterTop1.partner) {
+    note += `, with <strong>${biggestGainer.partner}</strong> gaining the most `
+          + `(+${(biggestGainer.after - biggestGainer.before).toFixed(1)} pp)`;
+  }
+  document.getElementById("disruption-annotation").innerHTML =
+    `<div class="disruption-note">${note}.</div>`;
+
+  // Chart
+  const el  = document.getElementById("tab-disruption");
+  const W   = el.getBoundingClientRect().width || 600;
+  const PAD_L = 120, PAD_R = 54, ROW = 30;
+  const iW  = W - PAD_L - PAD_R;
+  const H   = rows.length * ROW + 30;
+  const maxShare = d3.max(rows, d => Math.max(d.before, d.after));
+  const x   = d3.scaleLinear().domain([0, maxShare]).range([0, iW]);
+  const col = state.commodityColor;
+
+  const svg = d3.select("#disruption-chart").attr("height", H);
+  svg.selectAll("*").remove();
+  const g = svg.append("g").attr("transform", `translate(${PAD_L},10)`);
+
+  rows.forEach((d, i) => {
+    const y    = i * ROW;
+    const barH = 9;
+    const muted = "var(--muted)";
+
+    // Partner label
+    svg.append("text")
+      .attr("x", PAD_L - 8).attr("y", y + ROW / 2 + 5 + 10)
+      .attr("text-anchor", "end").attr("font-size", 11)
+      .attr("fill", d.isRemoved ? muted : "var(--text)")
+      .attr("text-decoration", d.isRemoved ? "line-through" : "none")
+      .text(d.partner.length > 18 ? d.partner.slice(0, 16) + "…" : d.partner);
+
+    // Before bar (gray)
+    g.append("rect")
+      .attr("x", 0).attr("y", y + 2).attr("width", x(d.before)).attr("height", barH)
+      .attr("fill", muted).attr("opacity", 0.45).attr("rx", 2);
+    g.append("text").attr("x", x(d.before) + 3).attr("y", y + barH + 1)
+      .attr("font-size", 10).attr("fill", muted)
+      .text(`${d.before.toFixed(1)}%`);
+
+    // After bar (colored), only if not removed
+    if (!d.isRemoved) {
+      g.append("rect")
+        .attr("x", 0).attr("y", y + barH + 4).attr("width", x(d.after)).attr("height", barH)
+        .attr("fill", col).attr("opacity", 0.85).attr("rx", 2);
+      g.append("text").attr("x", x(d.after) + 3).attr("y", y + barH * 2 + 5)
+        .attr("font-size", 10).attr("fill", col)
+        .text(`${d.after.toFixed(1)}%`);
+    }
+  });
+
+  // Legend
+  const lY = rows.length * ROW + 8;
+  [[muted, 0.45, "Before"], [col, 0.85, "After removal"]].forEach(([fill, op, label], i) => {
+    const lx = i * 110;
+    g.append("rect").attr("x", lx).attr("y", lY).attr("width", 12).attr("height", 8)
+      .attr("fill", fill).attr("opacity", op).attr("rx", 2);
+    g.append("text").attr("x", lx + 16).attr("y", lY + 7)
+      .attr("font-size", 10).attr("fill", "var(--muted)").text(label);
+  });
 }
 
 // ── Compare ───────────────────────────────────────────────────────────────────
