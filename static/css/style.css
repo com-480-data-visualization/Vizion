@@ -1,0 +1,493 @@
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0f172a;
+  --panel:     #1e293b;
+  --border:    #334155;
+  --text:      #e2e8f0;
+  --muted:     #94a3b8;
+  --imp:       #f97316;
+  --exp:       #3b82f6;
+  --green:     #22c55e;
+  --red:       #ef4444;
+  --yellow:    #eab308;
+  --cyan:      #06b6d4;
+  --font:      system-ui, -apple-system, sans-serif;
+  --radius:    8px;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+#app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+#app-header h1 {
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* Commodity nav pills */
+#commodity-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.comm-pill {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+
+.comm-pill.active {
+  border-color: currentColor;
+  font-weight: 700;
+}
+
+/* ── Controls bar ──────────────────────────────────────────────────────────── */
+#controls-bar {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 12px 32px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Radio pill groups */
+.radio-group {
+  display: flex;
+  gap: 6px;
+}
+
+.radio-pill {
+  padding: 4px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.radio-pill.active {
+  background: #1e40af;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+/* ── Main area (map + side panel) ──────────────────────────────────────────── */
+#main-area {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+#map-container {
+  flex: 2;
+  min-width: 500px;
+  position: relative;
+  background: var(--bg);
+}
+
+#world-map {
+  width: 100%;
+  height: 480px;
+  display: block;
+}
+
+/* Map country styles */
+.country {
+  stroke: #475569;
+  stroke-width: 0.4px;
+  cursor: pointer;
+  transition: stroke 0.1s, stroke-width 0.1s;
+}
+
+.country:hover {
+  stroke: #e2e8f0;
+  stroke-width: 1.5px;
+}
+
+.country.selected {
+  stroke: #38bdf8;
+  stroke-width: 2px;
+}
+
+.graticule {
+  fill: none;
+  stroke: #1e293b;
+  stroke-width: 0.5px;
+}
+
+/* Map tooltip */
+.tooltip {
+  position: absolute;
+  background: #1e293b;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+  max-width: 220px;
+}
+
+.tooltip.visible { opacity: 1; }
+
+/* ── Side panel ────────────────────────────────────────────────────────────── */
+#side-panel {
+  flex: 1;
+  min-width: 320px;
+  max-width: 440px;
+  padding: 16px 20px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  max-height: 480px;
+}
+
+.placeholder-msg {
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 60px;
+  text-align: center;
+}
+
+.country-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.country-sub {
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.panel-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 10px 0 4px;
+}
+
+/* Bar charts in side panel */
+.panel-bar-svg {
+  width: 100%;
+  display: block;
+}
+
+.bar-label {
+  font-size: 11px;
+  fill: var(--text);
+}
+
+.bar-value {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+/* ── Analysis tabs ─────────────────────────────────────────────────────────── */
+#analysis-section {
+  border-top: 1px solid var(--border);
+  padding: 0 32px 16px;
+}
+
+#tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 20px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover { color: var(--text); }
+
+.tab-btn.active {
+  color: var(--text);
+  border-bottom-color: #38bdf8;
+  font-weight: 700;
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* SVG charts */
+#history-chart, #sankey-chart, #dependency-chart,
+#compare-ts-chart, #compare-dep-chart {
+  width: 100%;
+  display: block;
+}
+
+.chart-note {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Axis styles (applied via D3) */
+.axis text { fill: var(--muted); font-size: 11px; }
+.axis path, .axis line { stroke: var(--border); }
+.axis .domain { display: none; }
+
+.grid line { stroke: var(--border); stroke-dasharray: 2,2; opacity: 0.6; }
+.grid .domain { display: none; }
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Concentration zones text */
+.zone-label { font-size: 10px; fill: var(--muted); }
+
+/* ── Compare tab ───────────────────────────────────────────────────────────── */
+.compare-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 8px;
+}
+
+#compare-select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 13px;
+  min-width: 240px;
+  cursor: pointer;
+}
+
+#compare-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.compare-stat-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 10px;
+  text-align: center;
+}
+
+.compare-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.compare-stat-vals {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.vs-text {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* ── Sections (Top Movers / Race) ──────────────────────────────────────────── */
+#movers-section, #race-section {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px 28px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.section-header h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.section-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#movers-chart, #race-chart {
+  width: 100%;
+  display: block;
+}
+
+/* Play/pause button */
+.play-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 6px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.play-btn:hover { background: #334155; }
+
+.race-year {
+  font-size: 20px;
+  font-weight: 700;
+  color: #38bdf8;
+  min-width: 52px;
+  text-align: right;
+}
+
+/* ── Sankey ────────────────────────────────────────────────────────────────── */
+.sankey-node rect {
+  cursor: pointer;
+}
+
+.sankey-link {
+  fill: none;
+  stroke-opacity: 0.25;
+}
+
+.sankey-link:hover {
+  stroke-opacity: 0.5;
+}
+
+.sankey-label {
+  font-size: 11px;
+  fill: var(--text);
+}
+
+/* ── Colorbar ──────────────────────────────────────────────────────────────── */
+#colorbar-group text { fill: var(--muted); font-size: 10px; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #app-header, #controls-bar, #movers-section, #race-section, #analysis-section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  #side-panel { max-height: none; max-width: 100%; }
+  #map-container { min-width: 100%; }
+}

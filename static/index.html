@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Global Trade Explorer</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+
+  <!-- D3 v7 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <!-- d3-geo for world map -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson.min.js"></script>
+  <!-- d3-sankey -->
+  <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header id="app-header">
+  <div class="header-left">
+    <h1>&#127758; Global Trade Explorer</h1>
+    <p class="subtitle">Bilateral trade flows by commodity &mdash; UN Comtrade 2000&ndash;2023</p>
+  </div>
+  <nav id="commodity-nav">
+    <!-- filled by JS -->
+  </nav>
+</header>
+
+<!-- ── Controls bar ─────────────────────────────────────────────────────────── -->
+<div id="controls-bar">
+  <div class="control-group" style="flex:1; min-width:280px;">
+    <label class="control-label">Year: <span id="year-display">2023</span></label>
+    <input type="range" id="year-slider" min="2000" max="2023" value="2023" step="1" />
+    <div class="slider-ticks">
+      <span>2000</span><span>2004</span><span>2008</span><span>2012</span>
+      <span>2016</span><span>2020</span><span>2023</span>
+    </div>
+  </div>
+  <div class="control-group" style="align-items:center;">
+    <label class="control-label">Map view:</label>
+    <div class="radio-group" id="flow-toggle">
+      <label class="radio-pill active" data-value="total">Total</label>
+      <label class="radio-pill" data-value="Import">Imports</label>
+      <label class="radio-pill" data-value="Export">Exports</label>
+    </div>
+  </div>
+</div>
+
+<!-- ── Map + Side panel ──────────────────────────────────────────────────────── -->
+<div id="main-area">
+  <div id="map-container">
+    <svg id="world-map"></svg>
+    <div id="map-tooltip" class="tooltip"></div>
+  </div>
+
+  <aside id="side-panel">
+    <div id="country-info">
+      <p class="placeholder-msg">Click a country on the map to explore its trade.</p>
+    </div>
+  </aside>
+</div>
+
+<!-- ── Country detail tabs (hidden until country selected) ──────────────────── -->
+<section id="analysis-section" style="display:none;">
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="history">&#128200; Trade History</button>
+    <button class="tab-btn" data-tab="sankey">&#128256; Trade Flows</button>
+    <button class="tab-btn" data-tab="dependency">&#9888; Dependency</button>
+    <button class="tab-btn" data-tab="compare">&#128290; Compare</button>
+  </div>
+
+  <div id="tab-history" class="tab-content active">
+    <svg id="history-chart"></svg>
+    <div id="history-legend" class="legend"></div>
+  </div>
+
+  <div id="tab-sankey" class="tab-content">
+    <svg id="sankey-chart"></svg>
+    <p class="chart-note">Left = import sources &nbsp;|&nbsp; Right = export destinations</p>
+  </div>
+
+  <div id="tab-dependency" class="tab-content">
+    <svg id="dependency-chart"></svg>
+    <div id="dependency-legend" class="legend"></div>
+  </div>
+
+  <div id="tab-compare" class="tab-content">
+    <div class="compare-controls">
+      <label class="control-label">Compare with:</label>
+      <select id="compare-select">
+        <option value="">Select a country&hellip;</option>
+      </select>
+    </div>
+    <div id="compare-stats"></div>
+    <svg id="compare-ts-chart"></svg>
+    <svg id="compare-dep-chart"></svg>
+  </div>
+</section>
+
+<!-- ── Top Movers ────────────────────────────────────────────────────────────── -->
+<section id="movers-section">
+  <div class="section-header">
+    <div>
+      <h2>&#128202; Top Movers</h2>
+      <p id="movers-subtitle" class="section-subtitle"></p>
+    </div>
+    <div class="radio-group" id="movers-flow-toggle">
+      <label class="radio-pill active" data-value="total">Total</label>
+      <label class="radio-pill" data-value="Import">Imports</label>
+      <label class="radio-pill" data-value="Export">Exports</label>
+    </div>
+  </div>
+  <svg id="movers-chart"></svg>
+</section>
+
+<!-- ── Dependency Race ───────────────────────────────────────────────────────── -->
+<section id="race-section">
+  <div class="section-header">
+    <div>
+      <h2>&#127937; Dependency Race</h2>
+      <p class="section-subtitle">
+        Top 15 most import-concentrated countries over time
+        (% of total imports from a single partner)
+      </p>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="race-play-btn" class="play-btn">&#9654; Play</button>
+      <button id="race-pause-btn" class="play-btn" style="display:none;">&#9646;&#9646; Pause</button>
+      <span id="race-year-label" class="race-year"></span>
+    </div>
+  </div>
+  <input type="range" id="race-slider" min="2000" max="2023" value="2000" step="1" style="width:100%; margin-bottom:8px;" />
+  <svg id="race-chart"></svg>
+</section>
+
+<script src="/static/js/main.js"></script>
+</body>
+</html>
