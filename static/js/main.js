@@ -17,6 +17,7 @@ const state = {
   raceYearIdx: 0,
   commodityColor: "#3b82f6",
   disruptionPartner: null, // non-null = disruption mode active
+  disruptionType: "exporter", // "exporter" or "importer"
 };
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
@@ -280,9 +281,10 @@ async function refreshMap() {
 // ── Disruption map ────────────────────────────────────────────────────────────
 async function refreshDisruptionMap() {
   const partner = state.disruptionPartner;
-  const data = await fetch(
-    `/api/disruption/${state.commodity}/${encodeURIComponent(partner)}/${state.year}`
-  ).then(r => r.json());
+  const endpoint = state.disruptionType === "importer"
+    ? `/api/disruption_import/${state.commodity}/${encodeURIComponent(partner)}/${state.year}`
+    : `/api/disruption/${state.commodity}/${encodeURIComponent(partner)}/${state.year}`;
+  const data = await fetch(endpoint).then(r => r.json());
 
   const shareMap = {};
   data.forEach(d => { shareMap[d.iso3] = d.share; });
@@ -304,13 +306,19 @@ async function refreshDisruptionMap() {
     .attr("visibility", d => numericToIso3(d.id) ? null : "hidden");
 
   const W = +d3.select("#world-map").attr("width") || 800;
-  renderColorbar(d3.select("#world-map"), colorScale, 100, W, 480, `% imports from ${partner}`);
+  const cbLabel = state.disruptionType === "importer"
+    ? `% exports to ${partner}` : `% imports from ${partner}`;
+  renderColorbar(d3.select("#world-map"), colorScale, 100, W, 480, cbLabel);
 }
 
-async function activateDisruption(partner) {
+async function activateDisruption(partner, type) {
   state.disruptionPartner = partner;
-  document.getElementById("disruption-banner-text").textContent =
-    `⚡ Disruption: ${partner} removed as ${state.meta.commodities[state.commodity].label} supplier`;
+  state.disruptionType    = type; // "exporter" or "importer"
+  const commLabel = state.meta.commodities[state.commodity].label;
+  const label = type === "exporter"
+    ? `⚡ ${partner} removed as ${commLabel} supplier — who loses their source?`
+    : `⚡ ${partner} stops importing ${commLabel} — who loses their buyer?`;
+  document.getElementById("disruption-banner-text").textContent = label;
   document.getElementById("disruption-banner").style.display = "flex";
   await refreshDisruptionMap();
 }
@@ -733,127 +741,37 @@ async function drawDisruption() {
     `/api/country/${state.commodity}/${state.selectedIso3}/${state.year}`
   ).then(r => r.json());
 
-  if (panel.no_data || !panel.top_imports?.length) {
-    el.innerHTML = `<p class="placeholder-msg" style="margin-top:30px">No import data available for ${state.year}.</p>`;
-    return;
-  }
+  const countryName = panel.name || state.selectedIso3;
+  const commLabel   = state.meta.commodities[state.commodity].label;
 
-  const imports = panel.top_imports.slice(0, 8);
-  const totalImp = panel.total_imports;
-  const countryName = panel.name;
-
-  // Rebuild controls each time (country/year/commodity may have changed)
-  const prevVal = el.querySelector("#disruption-partner-sel")?.value;
   el.innerHTML = `
-    <div class="disruption-controls">
-      <label class="control-label">Simulate removing</label>
-      <select id="disruption-partner-sel">
-        ${imports.map(d => `<option value="${d.partner}"${d.partner === prevVal ? " selected" : ""}>${d.partner}</option>`).join("")}
-      </select>
-      <label class="control-label">as a supplier</label>
-      <button id="disruption-map-btn" class="play-btn" style="margin-left:8px;">⚡ Show on map</button>
+    <div style="padding:16px 0 8px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+        Simulate removing <strong style="color:${state.commodityColor}">${countryName}</strong>
+        from global ${commLabel} trade. The map will show which countries are most exposed.
+      </p>
+      <div class="radio-group" id="disruption-type-toggle" style="margin-bottom:14px;">
+        <label class="radio-pill active" data-value="exporter">As exporter (supply shock)</label>
+        <label class="radio-pill" data-value="importer">As importer (demand shock)</label>
+      </div>
+      <button id="disruption-map-btn" class="play-btn" style="font-size:14px;padding:8px 20px;">
+        &#9889; Simulate removing ${countryName}
+      </button>
     </div>
-    <div id="disruption-annotation"></div>
-    <svg id="disruption-chart"></svg>
+    <div id="disruption-results" style="margin-top:12px;"></div>
   `;
 
-  el.querySelector("#disruption-partner-sel")
-    .addEventListener("change", () => _renderDisruption(imports, totalImp, countryName));
-  el.querySelector("#disruption-map-btn")
-    .addEventListener("click", () => activateDisruption(
-      el.querySelector("#disruption-partner-sel").value
-    ));
-
-  _renderDisruption(imports, totalImp, countryName);
-}
-
-function _renderDisruption(imports, totalImp, countryName) {
-  const removed = document.getElementById("disruption-partner-sel").value;
-  const removedVal = imports.find(d => d.partner === removed)?.trade_value_usd ?? 0;
-  const newTotal = Math.max(totalImp - removedVal, 1);
-
-  const rows = imports.map(d => ({
-    partner: d.partner,
-    isRemoved: d.partner === removed,
-    before: d.trade_value_usd / totalImp * 100,
-    after:  d.partner === removed ? 0 : d.trade_value_usd / newTotal * 100,
-  }));
-
-  // Annotation
-  const beforeTop1 = rows[0];
-  const afterTop1  = rows.filter(d => !d.isRemoved).sort((a, b) => b.after - a.after)[0];
-  const biggestGainer = rows.filter(d => !d.isRemoved)
-    .sort((a, b) => (b.after - b.before) - (a.after - a.before))[0];
-
-  let note = `Removing <strong>${removed}</strong> `;
-  if (beforeTop1.isRemoved) {
-    note += `(#1 supplier at ${beforeTop1.before.toFixed(1)}%) shifts the top position to `
-          + `<strong>${afterTop1.partner}</strong> at <strong>${afterTop1.after.toFixed(1)}%</strong>`;
-  } else {
-    note += `raises the top-partner (<strong>${afterTop1.partner}</strong>) share `
-          + `from <strong>${beforeTop1.before.toFixed(1)}%</strong> → <strong>${afterTop1.after.toFixed(1)}%</strong>`;
-  }
-  if (biggestGainer && biggestGainer.partner !== afterTop1.partner) {
-    note += `, with <strong>${biggestGainer.partner}</strong> gaining the most `
-          + `(+${(biggestGainer.after - biggestGainer.before).toFixed(1)} pp)`;
-  }
-  document.getElementById("disruption-annotation").innerHTML =
-    `<div class="disruption-note">${note}.</div>`;
-
-  // Chart
-  const el  = document.getElementById("tab-disruption");
-  const W   = el.getBoundingClientRect().width || 600;
-  const PAD_L = 120, PAD_R = 54, ROW = 30;
-  const iW  = W - PAD_L - PAD_R;
-  const H   = rows.length * ROW + 30;
-  const maxShare = d3.max(rows, d => Math.max(d.before, d.after));
-  const x   = d3.scaleLinear().domain([0, maxShare]).range([0, iW]);
-  const col = state.commodityColor;
-
-  const svg = d3.select("#disruption-chart").attr("height", H);
-  svg.selectAll("*").remove();
-  const g = svg.append("g").attr("transform", `translate(${PAD_L},10)`);
-
-  rows.forEach((d, i) => {
-    const y    = i * ROW;
-    const barH = 9;
-    const muted = "var(--muted)";
-
-    // Partner label
-    svg.append("text")
-      .attr("x", PAD_L - 8).attr("y", y + ROW / 2 + 5 + 10)
-      .attr("text-anchor", "end").attr("font-size", 11)
-      .attr("fill", d.isRemoved ? muted : "var(--text)")
-      .attr("text-decoration", d.isRemoved ? "line-through" : "none")
-      .text(d.partner.length > 18 ? d.partner.slice(0, 16) + "…" : d.partner);
-
-    // Before bar (gray)
-    g.append("rect")
-      .attr("x", 0).attr("y", y + 2).attr("width", x(d.before)).attr("height", barH)
-      .attr("fill", muted).attr("opacity", 0.45).attr("rx", 2);
-    g.append("text").attr("x", x(d.before) + 3).attr("y", y + barH + 1)
-      .attr("font-size", 10).attr("fill", muted)
-      .text(`${d.before.toFixed(1)}%`);
-
-    // After bar (colored), only if not removed
-    if (!d.isRemoved) {
-      g.append("rect")
-        .attr("x", 0).attr("y", y + barH + 4).attr("width", x(d.after)).attr("height", barH)
-        .attr("fill", col).attr("opacity", 0.85).attr("rx", 2);
-      g.append("text").attr("x", x(d.after) + 3).attr("y", y + barH * 2 + 5)
-        .attr("font-size", 10).attr("fill", col)
-        .text(`${d.after.toFixed(1)}%`);
-    }
+  // Toggle logic
+  el.querySelector("#disruption-type-toggle").addEventListener("click", e => {
+    const pill = e.target.closest(".radio-pill");
+    if (!pill) return;
+    el.querySelectorAll("#disruption-type-toggle .radio-pill").forEach(p => p.classList.remove("active"));
+    pill.classList.add("active");
   });
 
-  // Legend
-  const lY = rows.length * ROW + 8;
-  [[muted, 0.45, "Before"], [col, 0.85, "After removal"]].forEach(([fill, op, label], i) => {
-    const lx = i * 110;
-    g.append("rect").attr("x", lx).attr("y", lY).attr("width", 12).attr("height", 8)
-      .attr("fill", fill).attr("opacity", op).attr("rx", 2);
-    g.append("text").attr("x", lx + 16).attr("y", lY + 7)
-      .attr("font-size", 10).attr("fill", "var(--muted)").text(label);
+  el.querySelector("#disruption-map-btn").addEventListener("click", () => {
+    const type = el.querySelector("#disruption-type-toggle .radio-pill.active").dataset.value;
+    activateDisruption(countryName, type);
   });
 }
 

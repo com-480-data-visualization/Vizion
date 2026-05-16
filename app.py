@@ -161,6 +161,7 @@ def race(commodity):
 
 @server.route("/api/disruption/<commodity>/<partner>/<int:year>")
 def disruption_data(commodity, partner, year):
+    """Who depends on <partner> as an import source? (partner removed as exporter)"""
     if commodity not in DATA:
         return jsonify([])
     panel = DATA[commodity]["panel"]
@@ -170,19 +171,36 @@ def disruption_data(commodity, partner, year):
         if not key.endswith(suffix):
             continue
         iso3 = key[: -len(suffix)]
-        total_imp = val.get("imp") or 0
-        if total_imp <= 0:
+        total = val.get("imp") or 0
+        if total <= 0:
             continue
-        partner_val = next(
-            (x["v"] for x in val.get("ti", []) if x["p"] == partner), None
-        )
-        if partner_val is None:
+        pval = next((x["v"] for x in val.get("ti", []) if x["p"] == partner), None)
+        if pval is None:
             continue
-        result.append({
-            "iso3":  iso3,
-            "name":  val["n"],
-            "share": round(partner_val / total_imp * 100, 2),
-        })
+        result.append({"iso3": iso3, "name": val["n"], "share": round(pval / total * 100, 2)})
+    result.sort(key=lambda x: -x["share"])
+    return jsonify(result)
+
+
+@server.route("/api/disruption_import/<commodity>/<buyer>/<int:year>")
+def disruption_import(commodity, buyer, year):
+    """Who depends on <buyer> as an export destination? (buyer removed as importer)"""
+    if commodity not in DATA:
+        return jsonify([])
+    panel = DATA[commodity]["panel"]
+    suffix = f"_{year}"
+    result = []
+    for key, val in panel.items():
+        if not key.endswith(suffix):
+            continue
+        iso3 = key[: -len(suffix)]
+        total = val.get("exp") or 0
+        if total <= 0:
+            continue
+        pval = next((x["v"] for x in val.get("te", []) if x["p"] == buyer), None)
+        if pval is None:
+            continue
+        result.append({"iso3": iso3, "name": val["n"], "share": round(pval / total * 100, 2)})
     result.sort(key=lambda x: -x["share"])
     return jsonify(result)
 
