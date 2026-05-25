@@ -1190,11 +1190,12 @@ async function initBlocs(meta) {
 function initBlocsMapSvg() {
   const container = document.getElementById("blocs-map-container");
   const W = container.getBoundingClientRect().width || 600;
-  const H = 320;
+  const scale = W / 6.3;
+  const H = Math.min(Math.round(scale * 3.3), 480);
 
   const svg = d3.select("#blocs-map").attr("width", W).attr("height", H);
 
-  const proj = d3.geoNaturalEarth1().scale(W / 6.3).translate([W / 2, H / 2]);
+  const proj = d3.geoNaturalEarth1().scale(scale).translate([W / 2, H / 2]);
   const p    = d3.geoPath().projection(proj);
 
   blocsState.proj = proj;
@@ -1274,7 +1275,7 @@ function drawBlocsScatter(data) {
   const { threshold, nameA, nameB } = blocsState;
   const container = document.getElementById("blocs-scatter-container");
   const W = container.getBoundingClientRect().width || 360;
-  const H = 320;
+  const H = blocsState.mapH || 380;
   const m = { top: 24, right: 16, bottom: 52, left: 52 };
   const iW = W - m.left - m.right;
   const iH = H - m.top  - m.bottom;
