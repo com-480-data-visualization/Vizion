@@ -51,6 +51,9 @@ outputs/figures/*.html
 outputs/tables/*.csv
 outputs/tables/*.xlsx
 
+# Claude Code
+.claude/
+
 # Misc
 *.log
 .python-version

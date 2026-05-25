@@ -4,19 +4,20 @@ Interactive visualization of global trade flows, dependencies, and
 disruptions across five commodity families (energy, cereals, steel,
 machinery, vehicles) using UN Comtrade data, 2000–2023.
 
-## 🌐 Live Demo
+## Live Demo
 
 **<https://global-trade-viz.onrender.com>**
 
-> *Hosted on Render's free tier — the first request after a period of
+> _Hosted on Render's free tier — the first request after a period of
 > inactivity may take **~30–60 seconds** to cold-start while the
 > container spins back up and the 5 commodity datasets load. Subsequent
-> interactions are instant.*
+> interactions are instant._
 
-## 📄 Reports
+## Reports
 
 - **Milestone 1:** [`Milestone1.pdf`](Milestone1.pdf) · notes in [`docs/milestone1_notes.md`](docs/milestone1_notes.md)
 - **Milestone 2:** [`docs/milestone2_overleaf.pdf`](docs/milestone2_overleaf.pdf) · source in [`docs/milestone2.md`](docs/milestone2.md)
+- **Milestone 3:** [`docs/milestone3_processbook.pdf`](docs/milestone3_processbook.pdf)
 
 ![global_map](images/global_map.png)
 
@@ -37,7 +38,7 @@ Vizion/
 ├── README.md
 ├── Milestone1.pdf
 ├── requirements.txt
-├── app.py                  ← Dash interactive dashboard (Milestone 2 prototype)
+├── app.py                  ← Flask backend serving pre-built JSON to the D3 frontend
 ├── data/
 │   ├── raw/                ← Raw Comtrade download (not committed)
 │   │   └── README.md       ← Download instructions
@@ -108,30 +109,33 @@ This downloads bilateral trade data for all five commodity families (2000–2023
 and saves processed CSVs to `data/processed/`.
 
 **Getting a free API key:**
+
 1. Go to [https://comtradedeveloper.un.org](https://comtradedeveloper.un.org)
 2. Sign up and subscribe to the **comtrade - v1** product (free tier)
 3. Copy your Primary Key from the profile page
 
 See [`data/raw/README.md`](data/raw/README.md) for full details and rate limit information.
 
-## Dashboard Features (Milestone 2 prototype)
+## Dashboard Features
 
-The interactive dashboard (`app.py`) runs locally at `http://127.0.0.1:8050`:
-
-- **Commodity selector** — switch between Energy, Cereals, Steel, Machinery, Vehicles
-- **Choropleth world map** — trade volume heatmap with year slider (2000–2023) and import/export/total toggle
-- **Country side panel** — click any country to see imports, exports, trade balance, and top-10 partner bar charts
-- **Trade History tab** — imports vs exports time series 2000–2023
-- **Trade Flows tab** — Sankey diagram of top bilateral partners
-- **Dependency tab** — top-partner import share over time with concentration bands
-- **Compare tab** — side-by-side comparison of two countries
-- **Top Movers** — year-over-year % change ranking (global)
-- **Dependency Race** — animated bar-chart race of most import-concentrated countries
+The app (`app.py`) serves a pure D3.js frontend from pre-built JSON files. Run locally at `http://127.0.0.1:5000`:
 
 ```bash
 python app.py
-# Open http://127.0.0.1:8050
 ```
+
+- **Commodity selector** — switch between Energy, Cereals, Steel, Machinery, Vehicles
+- **Choropleth world map** — trade volume heatmap with year slider (2000–2023) and import/export/total toggle
+- **Country side panel** — click any country to see imports, exports, balance, and top partner bars
+- **Trade History tab** — imports vs exports time series 2000–2023
+- **Trade Flows tab** — Sankey diagram of top bilateral partners
+- **Dependency tab** — top-partner import share over time with concentration bands
+- **Disruption Simulator tab** — remove a partner country and see how import shares redistribute across all dependents; supports supply-shock (exporter removed) and demand-shock (importer removed) modes
+- **Compare tab** — side-by-side country comparison
+- **Top Traders** — top 15 countries by trade volume (total / imports / exports)
+- **Dependency Race** — animated bar-chart race of most import-concentrated countries
+- **Trade Blocs** — world map + scatter plot showing which camp each country falls into when forced to choose between two anchor economies; adjustable threshold and year
+- **Trade Gravity** — D3 force simulation placing every country on a left–right axis between two poles, sized by import volume and colored by bloc alignment
 
 ---
 
@@ -174,3 +178,12 @@ python app.py
 - [x] Dependency Race animation
 - [x] Public deployment on Render
 - [x] Milestone 2 report (`docs/milestone2_overleaf.pdf`)
+
+## Milestone 3 Scope
+
+- [x] Full rewrite to pure D3.js frontend (no Dash/Plotly)
+- [x] Disruption Simulator — supply-shock and demand-shock modes, before/after dependency shares, map overlay
+- [x] Trade Blocs — world map + scatter plot, two configurable anchor economies, adjustable threshold and year
+- [x] Trade Gravity — D3 force simulation, bubble size by import volume, swing country highlighting
+- [x] Top Traders replacing Top Movers (absolute volume, flow toggle)
+- [x] Process book (`docs/milestone3_processbook.pdf`)

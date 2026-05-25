@@ -420,7 +420,7 @@ input[type="range"] {
 }
 
 /* ── Sections (Top Movers / Race) ──────────────────────────────────────────── */
-#movers-section, #race-section {
+#traders-section, #race-section {
   border-top: 1px solid var(--border);
   padding: 16px 32px 28px;
 }
@@ -445,7 +445,7 @@ input[type="range"] {
   color: var(--muted);
 }
 
-#movers-chart, #race-chart {
+#traders-chart, #race-chart {
   width: 100%;
   display: block;
 }
@@ -552,6 +552,83 @@ input[type="range"] {
   padding: 3px 10px;
   font-size: 12px;
 }
+
+/* ── Trade Blocs ───────────────────────────────────────────────────────────── */
+#blocs-section {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px 28px;
+}
+
+.blocs-controls-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.blocs-vs {
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 16px;
+  padding-bottom: 6px;
+}
+
+.bloc-select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+#blocs-layout {
+  display: flex;
+  gap: 16px;
+  position: relative;
+}
+
+#blocs-map-container {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+#blocs-scatter-container {
+  flex: 0 0 360px;
+  width: 360px;
+}
+
+#blocs-map, #blocs-scatter {
+  width: 100%;
+  display: block;
+}
+
+#blocs-tooltip {
+  position: absolute;
+  pointer-events: none;
+}
+
+#shared-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ── Trade Gravity ─────────────────────────────────────────────────────────── */
+#gravity-section {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px 28px;
+}
+
+#gravity-chart {
+  width: 100%;
+  display: block;
+}
+
+.bloc-dot { cursor: pointer; }
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {

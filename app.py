@@ -205,6 +205,44 @@ def disruption_import(commodity, buyer, year):
     return jsonify(result)
 
 
+# ── API: trade blocs — share of imports from two anchor countries ─────────────
+
+@server.route("/api/bloc/<commodity>/<iso_a>/<iso_b>/<int:year>")
+def bloc_data(commodity, iso_a, iso_b, year):
+    if commodity not in DATA:
+        return jsonify([])
+    panel = DATA[commodity]["panel"]
+    entry_a = panel.get(f"{iso_a}_{year}")
+    entry_b = panel.get(f"{iso_b}_{year}")
+    if not entry_a or not entry_b:
+        return jsonify([])
+    name_a = entry_a["n"]
+    name_b = entry_b["n"]
+    result = []
+    for key, val in panel.items():
+        parts = key.rsplit("_", 1)
+        if len(parts) != 2 or parts[1] != str(year):
+            continue
+        iso3 = parts[0]
+        if iso3 in (iso_a, iso_b):
+            continue
+        total = val.get("imp") or 0
+        if total <= 0:
+            continue
+        ti = val.get("ti", [])
+        share_a = next((x["v"] / total * 100 for x in ti if x["p"] == name_a), 0)
+        share_b = next((x["v"] / total * 100 for x in ti if x["p"] == name_b), 0)
+        if share_a == 0 and share_b == 0:
+            continue
+        result.append({
+            "iso3": iso3, "name": val["n"],
+            "share_a": round(share_a, 2),
+            "share_b": round(share_b, 2),
+            "total_imp": total,
+        })
+    return jsonify(result)
+
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

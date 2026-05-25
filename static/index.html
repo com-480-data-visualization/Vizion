@@ -101,20 +101,20 @@
   </div>
 </section>
 
-<!-- ── Top Movers ────────────────────────────────────────────────────────────── -->
-<section id="movers-section">
+<!-- ── Top Traders ────────────────────────────────────────────────────────────── -->
+<section id="traders-section">
   <div class="section-header">
     <div>
-      <h2>&#128202; Top Movers</h2>
-      <p id="movers-subtitle" class="section-subtitle"></p>
+      <h2>&#127942; Top Traders</h2>
+      <p id="traders-subtitle" class="section-subtitle"></p>
     </div>
-    <div class="radio-group" id="movers-flow-toggle">
+    <div class="radio-group" id="traders-flow-toggle">
       <label class="radio-pill active" data-value="total">Total</label>
       <label class="radio-pill" data-value="Import">Imports</label>
       <label class="radio-pill" data-value="Export">Exports</label>
     </div>
   </div>
-  <svg id="movers-chart"></svg>
+  <svg id="traders-chart"></svg>
 </section>
 
 <!-- ── Dependency Race ───────────────────────────────────────────────────────── -->
@@ -136,6 +136,72 @@
   <input type="range" id="race-slider" min="2000" max="2023" value="2000" step="1" style="width:100%; margin-bottom:8px;" />
   <svg id="race-chart"></svg>
 </section>
+
+<!-- ── Trade Blocs ─────────────────────────────────────────────────────────────── -->
+<section id="blocs-section">
+  <div class="section-header">
+    <div>
+      <h2>&#9876; Trade Blocs</h2>
+      <p class="section-subtitle">If two powers forced every country to choose — who lands where?</p>
+    </div>
+  </div>
+  <div class="blocs-controls-row">
+    <div class="control-group">
+      <label class="control-label">Commodity</label>
+      <select id="bloc-comm-select" class="bloc-select"></select>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Bloc A</label>
+      <select id="bloc-a-select" class="bloc-select"></select>
+    </div>
+    <div class="blocs-vs">vs</div>
+    <div class="control-group">
+      <label class="control-label">Bloc B</label>
+      <select id="bloc-b-select" class="bloc-select"></select>
+    </div>
+    <div class="control-group">
+      <label class="control-label">Threshold: <span id="blocs-threshold-display">10</span>%</label>
+      <input type="range" id="blocs-threshold" min="1" max="50" value="10" step="1" style="width:120px;" />
+    </div>
+    <div class="control-group">
+      <label class="control-label">Year: <span id="blocs-year-display">2021</span></label>
+      <input type="range" id="blocs-year-slider" min="2000" max="2023" value="2021" step="1" style="width:120px;" />
+    </div>
+  </div>
+  <div id="blocs-layout">
+    <div id="blocs-map-container">
+      <svg id="blocs-map"></svg>
+    </div>
+    <div id="blocs-scatter-container">
+      <svg id="blocs-scatter"></svg>
+    </div>
+    <div id="blocs-tooltip" class="tooltip"></div>
+  </div>
+  <div id="blocs-legend" class="legend" style="margin-top:8px;"></div>
+</section>
+
+<!-- ── Trade Gravity ──────────────────────────────────────────────────────────── -->
+<section id="gravity-section">
+  <div class="section-header">
+    <div>
+      <h2>&#129388; Trade Gravity</h2>
+      <p class="section-subtitle">Each country floats between two poles — pulled by how much it depends on each</p>
+    </div>
+    <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="control-group">
+        <label class="control-label">Year: <span id="gravity-year-display">2021</span></label>
+        <input type="range" id="gravity-year-slider" min="2000" max="2023" value="2021" step="1" style="width:120px;" />
+      </div>
+      <div class="control-group">
+        <label class="control-label">Threshold: <span id="gravity-threshold-display">10</span>%</label>
+        <input type="range" id="gravity-threshold" min="1" max="50" value="10" step="1" style="width:120px;" />
+      </div>
+    </div>
+  </div>
+  <svg id="gravity-chart"></svg>
+</section>
+
+<div id="shared-tooltip" class="tooltip"></div>
 
 <script src="/static/js/main.js"></script>
 </body>

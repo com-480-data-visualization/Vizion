@@ -10,7 +10,7 @@ const state = {
   year: 2023,
   flow: "total",
   selectedIso3: null,
-  moversFlow: "total",
+  tradersFlow: "total",
   meta: null,
   raceData: null,
   raceTimer: null,
@@ -44,8 +44,9 @@ async function init() {
 
   await loadWorldMap();
   await refreshMap();
-  await refreshMovers();
+  await refreshTopTraders();
   await refreshRace();
+  await initBlocs(meta);
 }
 
 // ── Commodity nav ─────────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ async function refreshAll() {
     await refreshSidePanel();
     refreshActiveTab();
   }
-  await refreshMovers();
+  await refreshTopTraders();
   await refreshRace();
 }
 
@@ -102,7 +103,7 @@ function setupControls(meta) {
     display.textContent = state.year;
     refreshMap();
     if (state.selectedIso3) refreshSidePanel();
-    refreshMovers();
+    refreshTopTraders();
   });
 
   // Flow toggle
@@ -115,14 +116,14 @@ function setupControls(meta) {
     refreshMap();
   });
 
-  // Movers flow toggle
-  document.getElementById("movers-flow-toggle").addEventListener("click", e => {
+  // Traders flow toggle
+  document.getElementById("traders-flow-toggle").addEventListener("click", e => {
     const pill = e.target.closest(".radio-pill");
     if (!pill) return;
-    document.querySelectorAll("#movers-flow-toggle .radio-pill").forEach(p => p.classList.remove("active"));
+    document.querySelectorAll("#traders-flow-toggle .radio-pill").forEach(p => p.classList.remove("active"));
     pill.classList.add("active");
-    state.moversFlow = pill.dataset.value;
-    refreshMovers();
+    state.tradersFlow = pill.dataset.value;
+    refreshTopTraders();
   });
 
   // Tabs
@@ -921,69 +922,60 @@ function drawCompareDep(selector, depA, depB, nameA, nameB, colorA, colorB) {
   });
 }
 
-// ── Top Movers ────────────────────────────────────────────────────────────────
-async function refreshMovers() {
+// ── Top Traders ───────────────────────────────────────────────────────────────
+async function refreshTopTraders() {
+  const flow = state.tradersFlow;
   const data = await fetch(
-    `/api/movers/${state.commodity}/${state.year}/${state.moversFlow}`
+    `/api/map/${state.commodity}/${state.year}/${flow}`
   ).then(r => r.json());
 
-  const subtitle = `${state.year - 1} → ${state.year}  ·  ${state.meta.commodities[state.commodity].label}`;
-  document.getElementById("movers-subtitle").textContent = subtitle;
+  const sorted = data.filter(d => d.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 15);
 
-  const section = document.getElementById("movers-section");
+  const subtitle = `${state.year}  ·  ${state.meta.commodities[state.commodity].label}`;
+  document.getElementById("traders-subtitle").textContent = subtitle;
+
+  const section = document.getElementById("traders-section");
   const W = section.clientWidth - 64 || 700;
   const ROW = 26;
-  const PAD_LEFT = 170, PAD_RIGHT = 70;
-  const H = data.length * ROW + 60;
+  const PAD_LEFT = 160, PAD_RIGHT = 80;
+  const H = sorted.length * ROW + 60;
   const iW = W - PAD_LEFT - PAD_RIGHT;
 
-  const svg = d3.select("#movers-chart").attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
+  const svg = d3.select("#traders-chart").attr("height", H).attr("viewBox", `0 0 ${W} ${H}`);
   svg.selectAll("*").remove();
 
-  if (!data.length) {
-    svg.append("text").attr("x", 20).attr("y", 40).attr("fill", "var(--muted)").text("Select a year after 2000");
+  if (!sorted.length) {
+    svg.append("text").attr("x", 20).attr("y", 40).attr("fill", "var(--muted)").text("No data");
     return;
   }
 
+  const color = flow === "Import" ? "var(--imp)" : flow === "Export" ? "var(--exp)" : "var(--cyan)";
+  const xScale = d3.scaleLinear().domain([0, sorted[0].value]).range([0, iW]);
   const g = svg.append("g").attr("transform", `translate(${PAD_LEFT},20)`);
 
-  const ext = d3.extent(data, d => d.pct_change);
-  const absMax = Math.max(Math.abs(ext[0]), Math.abs(ext[1]));
-  const x = d3.scaleLinear().domain([-absMax, absMax]).range([0, iW]);
-  const zero = x(0);
-
-  // Grid & zero line
-  g.append("line").attr("x1", zero).attr("x2", zero).attr("y1", 0).attr("y2", data.length * ROW)
-    .attr("stroke", "var(--border)").attr("stroke-width", 1.5);
-
-  data.forEach((d, i) => {
+  sorted.forEach((d, i) => {
     const y = i * ROW + 4;
-    const barX = d.pct_change >= 0 ? zero : x(d.pct_change);
-    const barW = Math.abs(x(d.pct_change) - zero);
-    const color = d.pct_change >= 0 ? "var(--green)" : "var(--red)";
+    const bW = xScale(d.value);
 
-    g.append("rect").attr("x", barX).attr("y", y + 2)
-      .attr("width", Math.max(1, barW)).attr("height", ROW - 6)
+    g.append("rect").attr("x", 0).attr("y", y + 2)
+      .attr("width", Math.max(2, bW)).attr("height", ROW - 6)
       .attr("fill", color).attr("rx", 2).attr("opacity", 0.85);
 
-    // Country label
     svg.append("text").attr("class", "bar-label")
       .attr("x", PAD_LEFT - 6).attr("y", y + ROW / 2 + 4 + 20)
       .attr("text-anchor", "end")
-      .text(d.reporter.length > 22 ? d.reporter.slice(0, 20) + "…" : d.reporter);
+      .text(d.reporter.length > 20 ? d.reporter.slice(0, 18) + "…" : d.reporter);
 
-    // Value label
-    const labelX = d.pct_change >= 0 ? zero + barW + 4 : zero - barW - 4;
-    const anchor = d.pct_change >= 0 ? "start" : "end";
     g.append("text").attr("class", "bar-value")
-      .attr("x", labelX).attr("y", y + ROW / 2 + 4)
-      .attr("text-anchor", anchor)
-      .text(`${d.pct_change >= 0 ? "+" : ""}${d.pct_change.toFixed(1)}%`);
+      .attr("x", bW + 4).attr("y", y + ROW / 2 + 4)
+      .attr("text-anchor", "start")
+      .text(fmtUSD(d.value));
   });
 
-  // X axis
-  g.append("g").attr("class", "axis").attr("transform", `translate(0,${data.length * ROW})`)
-    .call(d3.axisBottom(x).ticks(5).tickFormat(v => (v >= 0 ? "+" : "") + v.toFixed(0) + "%"));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${sorted.length * ROW})`)
+    .call(d3.axisBottom(xScale).ticks(4).tickFormat(fmtUSD));
 }
 
 // ── Dependency Race ───────────────────────────────────────────────────────────
@@ -1117,6 +1109,408 @@ function numericToIso3(id) {
 function debounce(fn, ms) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// ── Trade Blocs ───────────────────────────────────────────────────────────────
+const blocsState = {
+  isoA: "DEU", isoB: "JPN",
+  threshold: 10, year: 2021,
+  commodity: "vehicles",
+  data: null, nameA: "Germany", nameB: "Japan",
+};
+
+function getBlocColor(sA, sB, thr) {
+  const a = sA >= thr, b = sB >= thr;
+  if (a && b) return "#eab308";
+  if (a)      return "#3b82f6";
+  if (b)      return "#ef4444";
+  return "#475569";
+}
+
+async function initBlocs(meta) {
+  const commSel = document.getElementById("bloc-comm-select");
+  meta.available.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = meta.commodities[c].label;
+    if (c === "vehicles") opt.selected = true;
+    commSel.appendChild(opt);
+  });
+
+  const sorted = [...meta.countries].sort((a, b) => a.name.localeCompare(b.name));
+  ["bloc-a-select", "bloc-b-select"].forEach((id, idx) => {
+    const sel = document.getElementById(id);
+    sorted.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.iso3;
+      opt.textContent = c.name;
+      if (c.iso3 === (idx === 0 ? "DEU" : "JPN")) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", e => {
+      if (idx === 0) blocsState.isoA = e.target.value;
+      else           blocsState.isoB = e.target.value;
+      refreshBlocs();
+    });
+  });
+
+  commSel.addEventListener("change", e => { blocsState.commodity = e.target.value; refreshBlocs(); });
+
+  document.getElementById("blocs-threshold").addEventListener("input", e => {
+    blocsState.threshold = +e.target.value;
+    document.getElementById("blocs-threshold-display").textContent = blocsState.threshold;
+    if (blocsState.data) { drawBlocsMap(blocsState.data); drawBlocsScatter(blocsState.data); drawGravity(blocsState.data); }
+  });
+
+  document.getElementById("blocs-year-slider").addEventListener("input", e => {
+    blocsState.year = +e.target.value;
+    document.getElementById("blocs-year-display").textContent = blocsState.year;
+    refreshBlocs();
+  });
+
+  document.getElementById("gravity-year-slider").addEventListener("input", e => {
+    blocsState.year = +e.target.value;
+    document.getElementById("gravity-year-display").textContent = blocsState.year;
+    document.getElementById("blocs-year-slider").value = blocsState.year;
+    document.getElementById("blocs-year-display").textContent = blocsState.year;
+    refreshBlocs();
+  });
+  document.getElementById("gravity-threshold").addEventListener("input", e => {
+    blocsState.threshold = +e.target.value;
+    document.getElementById("gravity-threshold-display").textContent = blocsState.threshold;
+    document.getElementById("blocs-threshold").value = blocsState.threshold;
+    document.getElementById("blocs-threshold-display").textContent = blocsState.threshold;
+    if (blocsState.data) { drawBlocsMap(blocsState.data); drawBlocsScatter(blocsState.data); drawGravity(blocsState.data); }
+  });
+
+  initBlocsMapSvg();
+  await refreshBlocs();
+}
+
+function initBlocsMapSvg() {
+  const container = document.getElementById("blocs-map-container");
+  const W = container.getBoundingClientRect().width || 600;
+  const H = 320;
+
+  const svg = d3.select("#blocs-map").attr("width", W).attr("height", H);
+
+  const proj = d3.geoNaturalEarth1().scale(W / 6.3).translate([W / 2, H / 2]);
+  const p    = d3.geoPath().projection(proj);
+
+  blocsState.proj = proj;
+  blocsState.path = p;
+  blocsState.mapW = W;
+  blocsState.mapH = H;
+
+  const g = svg.append("g").attr("id", "blocs-map-group");
+  g.append("path").datum(d3.geoGraticule()()).attr("class", "graticule").attr("d", p);
+
+  if (worldGeo) {
+    const features = topojson.feature(worldGeo, worldGeo.objects.countries).features;
+    g.append("g").attr("id", "blocs-countries-group")
+      .selectAll("path")
+      .data(features)
+      .join("path")
+      .attr("d", p)
+      .attr("fill", "#334155")
+      .attr("stroke", "#475569")
+      .attr("stroke-width", "0.4px")
+      .attr("visibility", d => numericToIso3(d.id) ? null : "hidden");
+  }
+}
+
+async function refreshBlocs() {
+  const { isoA, isoB, year, commodity } = blocsState;
+  const [data, pA, pB] = await Promise.all([
+    fetch(`/api/bloc/${commodity}/${isoA}/${isoB}/${year}`).then(r => r.json()),
+    fetch(`/api/country/${commodity}/${isoA}/${year}`).then(r => r.json()),
+    fetch(`/api/country/${commodity}/${isoB}/${year}`).then(r => r.json()),
+  ]);
+  blocsState.data  = data;
+  blocsState.nameA = pA.name || isoA;
+  blocsState.nameB = pB.name || isoB;
+  drawBlocsMap(data);
+  drawBlocsScatter(data);
+  drawGravity(data);
+  updateBlocsLegend();
+}
+
+function drawBlocsMap(data) {
+  const { threshold, isoA, isoB, nameA, nameB } = blocsState;
+  const tip = document.getElementById("shared-tooltip");
+
+  const shareMap = {};
+  data.forEach(d => { shareMap[d.iso3] = d; });
+  shareMap[isoA] = { iso3: isoA, name: nameA, share_a: 100, share_b: 0 };
+  shareMap[isoB] = { iso3: isoB, name: nameB, share_a: 0,   share_b: 100 };
+
+  d3.select("#blocs-countries-group").selectAll("path")
+    .attr("fill", d => {
+      const iso3 = numericToIso3(d.id);
+      const e = iso3 && shareMap[iso3];
+      return e ? getBlocColor(e.share_a, e.share_b, threshold) : "#334155";
+    })
+    .style("cursor", "default")
+    .on("mouseover", (event, d) => {
+      const iso3 = numericToIso3(d.id);
+      const e = iso3 && shareMap[iso3];
+      if (!e) return;
+      const isAnchorA = iso3 === isoA, isAnchorB = iso3 === isoB;
+      tip.innerHTML = isAnchorA
+        ? `<strong>${nameA}</strong><br>Bloc A anchor`
+        : isAnchorB
+        ? `<strong>${nameB}</strong><br>Bloc B anchor`
+        : `<strong>${e.name}</strong><br>${nameA}: ${e.share_a.toFixed(1)}%&nbsp;&nbsp;${nameB}: ${e.share_b.toFixed(1)}%`;
+      tip.classList.add("visible");
+    })
+    .on("mousemove", event => {
+      tip.style.left = (event.clientX + 12) + "px";
+      tip.style.top  = (event.clientY - 10) + "px";
+    })
+    .on("mouseout", () => tip.classList.remove("visible"));
+}
+
+function drawBlocsScatter(data) {
+  const { threshold, nameA, nameB } = blocsState;
+  const container = document.getElementById("blocs-scatter-container");
+  const W = container.getBoundingClientRect().width || 360;
+  const H = 320;
+  const m = { top: 24, right: 16, bottom: 52, left: 52 };
+  const iW = W - m.left - m.right;
+  const iH = H - m.top  - m.bottom;
+
+  const svg = d3.select("#blocs-scatter").attr("width", W).attr("height", H);
+  svg.selectAll("*").remove();
+  const g = svg.append("g").attr("transform", `translate(${m.left},${m.top})`);
+
+  const maxA = d3.max(data, d => d.share_a) || 10;
+  const maxB = d3.max(data, d => d.share_b) || 10;
+  const axMax = Math.min(Math.ceil(Math.max(maxA, maxB, threshold + 5) / 5) * 5 + 5, 100);
+
+  const xSc = d3.scaleLinear().domain([0, axMax]).range([0, iW]);
+  const ySc = d3.scaleLinear().domain([0, axMax]).range([iH, 0]);
+  const tX  = xSc(threshold);
+  const tY  = ySc(threshold);
+
+  g.append("rect").attr("x", tX).attr("y", 0)
+    .attr("width", iW - tX).attr("height", tY)
+    .attr("fill", "#3b82f6").attr("opacity", 0.07);
+  g.append("rect").attr("x", 0).attr("y", tY)
+    .attr("width", tX).attr("height", iH - tY)
+    .attr("fill", "#ef4444").attr("opacity", 0.07);
+  g.append("rect").attr("x", tX).attr("y", tY)
+    .attr("width", iW - tX).attr("height", iH - tY)
+    .attr("fill", "#eab308").attr("opacity", 0.09);
+
+  g.append("line").attr("x1", tX).attr("x2", tX).attr("y1", 0).attr("y2", iH)
+    .attr("stroke", "#3b82f6").attr("stroke-dasharray", "4,3").attr("opacity", 0.5);
+  g.append("line").attr("x1", 0).attr("x2", iW).attr("y1", tY).attr("y2", tY)
+    .attr("stroke", "#ef4444").attr("stroke-dasharray", "4,3").attr("opacity", 0.5);
+
+  g.append("text").attr("x", (tX + iW) / 2).attr("y", iH - 4)
+    .attr("text-anchor", "middle").attr("font-size", 9).attr("fill", "#3b82f6").attr("opacity", 0.7)
+    .text(`${nameA} camp`);
+  g.append("text").attr("x", tX / 2).attr("y", (tY + iH) / 2)
+    .attr("text-anchor", "middle").attr("font-size", 9).attr("fill", "#ef4444").attr("opacity", 0.7)
+    .text(`${nameB} camp`);
+  g.append("text").attr("x", (tX + iW) / 2).attr("y", tY - 4)
+    .attr("text-anchor", "middle").attr("font-size", 9).attr("fill", "#eab308").attr("opacity", 0.7)
+    .text("Swing");
+
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${iH})`)
+    .call(d3.axisBottom(xSc).ticks(5).tickFormat(d => d + "%"));
+  g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(ySc).ticks(5).tickFormat(d => d + "%"));
+
+  g.append("text").attr("x", iW / 2).attr("y", iH + 44)
+    .attr("text-anchor", "middle").attr("fill", "#94a3b8").attr("font-size", 10)
+    .text(`% from ${nameA}`);
+  g.append("text").attr("transform", "rotate(-90)")
+    .attr("x", -iH / 2).attr("y", -40)
+    .attr("text-anchor", "middle").attr("fill", "#94a3b8").attr("font-size", 10)
+    .text(`% from ${nameB}`);
+
+  const tip = document.getElementById("shared-tooltip");
+
+  g.selectAll(".bloc-dot")
+    .data(data)
+    .join("circle")
+    .attr("class", "bloc-dot")
+    .attr("cx", d => xSc(d.share_a))
+    .attr("cy", d => ySc(d.share_b))
+    .attr("r", 4)
+    .attr("fill", d => getBlocColor(d.share_a, d.share_b, threshold))
+    .attr("opacity", 0.85)
+    .attr("stroke", "#0f172a").attr("stroke-width", 0.5)
+    .on("mouseover", (event, d) => {
+      d3.select(event.currentTarget).attr("r", 6).attr("stroke-width", 1.5);
+      tip.innerHTML = `<strong>${d.name}</strong><br>${nameA}: ${d.share_a.toFixed(1)}%<br>${nameB}: ${d.share_b.toFixed(1)}%`;
+      tip.classList.add("visible");
+    })
+    .on("mousemove", event => {
+      tip.style.left = (event.clientX + 12) + "px";
+      tip.style.top  = (event.clientY - 10) + "px";
+    })
+    .on("mouseout", event => {
+      d3.select(event.currentTarget).attr("r", 4).attr("stroke-width", 0.5);
+      tip.classList.remove("visible");
+    });
+
+  const swing = data.filter(d => d.share_a >= threshold && d.share_b >= threshold);
+  g.selectAll(".bloc-label")
+    .data(swing)
+    .join("text").attr("class", "bloc-label")
+    .attr("x", d => xSc(d.share_a) + 6)
+    .attr("y", d => ySc(d.share_b) + 4)
+    .attr("font-size", 9).attr("fill", "#e2e8f0")
+    .text(d => d.name.length > 14 ? d.iso3 : d.name);
+}
+
+const GRAVITY_MAJOR = new Set([
+  "USA","CHN","FRA","GBR","IND","BRA","CAN","AUS","RUS","KOR",
+  "ITA","ESP","MEX","IDN","SAU","TUR","ZAF","NGA","NLD","BEL",
+  "CHE","SWE","POL","ARG","THA","MYS","SGP","EGY","IRN","NOR",
+]);
+
+function drawGravity(data) {
+  const { nameA, nameB, threshold } = blocsState;
+  const section = document.getElementById("gravity-section");
+  const W = section.getBoundingClientRect().width - 64;
+  const H = 460;
+  const leftX   = 95;
+  const rightX  = W - 95;
+  const centerX = (leftX + rightX) / 2;
+  const halfW   = (rightX - leftX) / 2;
+  const centerY = H / 2;
+
+  const svg = d3.select("#gravity-chart").attr("width", W).attr("height", H);
+  svg.selectAll("*").remove();
+
+  svg.append("rect").attr("x", 0).attr("y", 0).attr("width", centerX).attr("height", H)
+    .attr("fill", "#3b82f6").attr("opacity", 0.03);
+  svg.append("rect").attr("x", centerX).attr("y", 0).attr("width", W - centerX).attr("height", H)
+    .attr("fill", "#ef4444").attr("opacity", 0.03);
+
+  svg.append("line")
+    .attr("x1", centerX).attr("x2", centerX).attr("y1", 24).attr("y2", H - 12)
+    .attr("stroke", "#334155").attr("stroke-dasharray", "5,4").attr("stroke-width", 1);
+
+  svg.append("text").attr("x", (leftX + centerX) / 2).attr("y", 16)
+    .attr("text-anchor", "middle").attr("font-size", 11).attr("fill", "#3b82f6").attr("opacity", 0.6)
+    .text(`${nameA}'s zone`);
+  svg.append("text").attr("x", (rightX + centerX) / 2).attr("y", 16)
+    .attr("text-anchor", "middle").attr("font-size", 11).attr("fill", "#ef4444").attr("opacity", 0.6)
+    .text(`${nameB}'s zone`);
+  svg.append("text").attr("x", centerX).attr("y", 16)
+    .attr("text-anchor", "middle").attr("font-size", 10).attr("fill", "#94a3b8")
+    .text("◀ contested ▶");
+
+  [{ x: leftX, name: nameA, color: "#3b82f6" },
+   { x: rightX, name: nameB, color: "#ef4444" }].forEach(pole => {
+    svg.append("circle").attr("cx", pole.x).attr("cy", centerY)
+      .attr("r", 36).attr("fill", pole.color).attr("opacity", 0.9);
+    pole.name.split(" ").forEach((w, i, arr) => {
+      svg.append("text")
+        .attr("x", pole.x).attr("y", centerY + (i - (arr.length - 1) / 2) * 13 + 1)
+        .attr("text-anchor", "middle").attr("fill", "#fff")
+        .attr("font-size", 10).attr("font-weight", 700).attr("pointer-events", "none")
+        .text(w);
+    });
+  });
+
+  const maxImp = d3.max(data, d => d.total_imp) || 1;
+  const rScale = d3.scaleSqrt().domain([0, maxImp]).range([3, 18]);
+
+  const active = data.filter(d => d.share_a >= threshold || d.share_b >= threshold);
+  const neutralCount = data.length - active.length;
+
+  svg.append("text").attr("x", centerX).attr("y", H - 8)
+    .attr("text-anchor", "middle").attr("font-size", 10).attr("fill", "#475569")
+    .text(`${neutralCount} neutral countries (below ${threshold}% threshold) not shown`);
+
+  const nodes = active.map(d => {
+    const total   = d.share_a + d.share_b;
+    const ratio   = total > 0 ? (d.share_b - d.share_a) / total : 0;
+    const targetX = centerX + ratio * halfW * 0.82;
+    const r       = rScale(d.total_imp || 0);
+    return { ...d, x: targetX + (Math.random() - 0.5) * 40,
+             y: centerY + (Math.random() - 0.5) * (H * 0.55), targetX, r };
+  });
+
+  const tip = document.getElementById("shared-tooltip");
+  const nodeG = svg.append("g");
+
+  const circles = nodeG.selectAll("circle.gnode")
+    .data(nodes).join("circle").attr("class", "gnode")
+    .attr("r", d => d.r)
+    .attr("fill", d => getBlocColor(d.share_a, d.share_b, threshold))
+    .attr("stroke", "#0f172a").attr("stroke-width", 0.5).attr("opacity", 0.88)
+    .on("mouseover", (event, d) => {
+      d3.select(event.currentTarget).attr("stroke", "#fff").attr("stroke-width", 2);
+      tip.innerHTML = `<strong>${d.name}</strong><br>${nameA}: ${d.share_a.toFixed(1)}%<br>${nameB}: ${d.share_b.toFixed(1)}%`;
+      tip.classList.add("visible");
+    })
+    .on("mousemove", event => {
+      tip.style.left = (event.clientX + 12) + "px";
+      tip.style.top  = (event.clientY - 10) + "px";
+    })
+    .on("mouseout", event => {
+      d3.select(event.currentTarget).attr("stroke", "#0f172a").attr("stroke-width", 0.5);
+      tip.classList.remove("visible");
+    });
+
+  const labeledNodes = nodes.filter(d =>
+    GRAVITY_MAJOR.has(d.iso3) || (d.share_a >= threshold && d.share_b >= threshold)
+  );
+  const labels = nodeG.selectAll("text.glabel")
+    .data(labeledNodes).join("text").attr("class", "glabel")
+    .attr("text-anchor", "middle")
+    .attr("font-size", d => GRAVITY_MAJOR.has(d.iso3) ? 9 : 8)
+    .attr("font-weight", d => GRAVITY_MAJOR.has(d.iso3) ? 600 : 400)
+    .attr("fill", "#e2e8f0").attr("pointer-events", "none")
+    .text(d => d.iso3);
+
+  const poles = [{ x: leftX, y: centerY }, { x: rightX, y: centerY }];
+  const poleR  = 36 + 6; // pole radius + padding
+
+  function repelPoles() {
+    for (const node of nodes) {
+      for (const pole of poles) {
+        const dx = node.x - pole.x;
+        const dy = node.y - pole.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const minDist = poleR + node.r;
+        if (dist < minDist) {
+          const push = (minDist - dist) / dist * 0.8;
+          node.x += dx * push;
+          node.y += dy * push;
+        }
+      }
+    }
+  }
+
+  const sim = d3.forceSimulation(nodes)
+    .force("x", d3.forceX(d => d.targetX).strength(0.38))
+    .force("y", d3.forceY(centerY).strength(0.04))
+    .force("collision", d3.forceCollide(d => d.r + 2).strength(0.9))
+    .force("poles", repelPoles)
+    .force("charge", d3.forceManyBody().strength(-4))
+    .on("tick", () => {
+      circles.attr("cx", d => d.x).attr("cy", d => d.y);
+      labels.attr("x", d => d.x).attr("y", d => d.y + d.r + 9);
+    });
+
+  setTimeout(() => sim.stop(), 3500);
+}
+
+function updateBlocsLegend() {
+  const { nameA, nameB } = blocsState;
+  document.getElementById("blocs-legend").innerHTML = `
+    <div class="legend-item"><span class="legend-swatch" style="background:#3b82f6"></span>${nameA}'s camp</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#ef4444"></span>${nameB}'s camp</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#eab308"></span>Swing — depends on both</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#475569"></span>Neutral</div>
+  `;
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
