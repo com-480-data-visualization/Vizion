@@ -1514,5 +1514,229 @@ function updateBlocsLegend() {
   `;
 }
 
+// ── Takeaway strip (always-on storytelling layer) ─────────────────────────────
+async function renderTakeaways() {
+  const strip = document.getElementById("takeaway-strip");
+  if (!strip || !state.commodity || !state.year) return;
+
+  let data;
+  try {
+    data = await fetch(`/api/takeaway/${state.commodity}/${state.year}`).then(r => r.json());
+  } catch (err) {
+    strip.innerHTML = "";
+    return;
+  }
+  if (!data || !data.largest_importer) { strip.innerHTML = ""; return; }
+
+  const commLabel = state.meta.commodities[state.commodity].label.toLowerCase();
+  const li = data.largest_importer || {};
+  const le = data.largest_exporter || {};
+  const me = data.most_exposed     || {};
+
+  strip.innerHTML = `
+    <div class="takeaway-card">
+      <div class="takeaway-label">Largest importer</div>
+      <div class="takeaway-title">${li.name || "—"}</div>
+      <div class="takeaway-sub">${li.value ? fmtUSD(li.value) + " of " + commLabel : "no data"}</div>
+    </div>
+    <div class="takeaway-card exp">
+      <div class="takeaway-label">Largest exporter</div>
+      <div class="takeaway-title">${le.name || "—"}</div>
+      <div class="takeaway-sub">${le.value ? fmtUSD(le.value) + " of " + commLabel : "no data"}</div>
+    </div>
+    <div class="takeaway-card warn">
+      <div class="takeaway-label">Highest exposure</div>
+      <div class="takeaway-title">${me.country || "—"}</div>
+      <div class="takeaway-sub">${me.partner ? `${me.partner} supplies ${me.share}%` : "no concentration signal"}</div>
+    </div>
+    <div class="takeaway-card guide">
+      <div class="takeaway-label">How to read this</div>
+      <div class="takeaway-title">Scale &ne; exposure</div>
+      <div class="takeaway-sub">Click any country to dig in.</div>
+    </div>`;
+}
+
+// Wire the strip into existing refresh paths (without touching the originals)
+const _origRefreshAll = refreshAll;
+refreshAll = async function () {
+  await _origRefreshAll();
+  await renderTakeaways();
+};
+(function attachYearStrip() {
+  const slider = document.getElementById("year-slider");
+  if (slider) slider.addEventListener("input", () => renderTakeaways());
+})();
+// Initial render after init() finishes (re-poll briefly until commodity loaded)
+(function initialStripRender() {
+  const tick = () => {
+    if (state.commodity && state.meta) { renderTakeaways(); return; }
+    setTimeout(tick, 200);
+  };
+  tick();
+})();
+
+// ── Guided tour ──────────────────────────────────────────────────────────────
+const tourState = { active: false, step: 0 };
+
+function switchTabTo(name) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.toggle("active", c.id === "tab-" + name));
+  refreshActiveTab();
+}
+
+function setYear(y) {
+  const slider = document.getElementById("year-slider");
+  if (!slider) return;
+  slider.value = y;
+  slider.dispatchEvent(new Event("input"));
+}
+
+async function selectCountryByIso3(iso3) {
+  state.selectedIso3 = iso3;
+  d3.select("#countries-group").selectAll("path")
+    .classed("selected", dd => numericToIso3(dd.id) === iso3);
+  document.getElementById("analysis-section").style.display = "block";
+  await refreshSidePanel();
+  refreshActiveTab();
+}
+
+const TOUR_STEPS = [
+  {
+    caption: "We're looking at global <strong>vehicle</strong> trade in 2023. Every country is colored by how much it trades. Behind these numbers is a question: what happens when the world stops being neutral?",
+    action: async () => {
+      selectCommodity("vehicles");
+      setYear(2023);
+      // Make sure the flow toggle is on Total
+      document.querySelectorAll("#flow-toggle .radio-pill").forEach(p =>
+        p.classList.toggle("active", p.dataset.value === "total"));
+      state.flow = "total";
+      await refreshMap();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+  },
+  {
+    caption: "Let's start with <strong>Germany</strong> — a major vehicle exporter. You can see exactly where its trade goes: the US, China, the UK. The side panel breaks it down.",
+    action: async () => {
+      await selectCountryByIso3("DEU");
+      switchTabTo("history");
+      document.getElementById("main-area").scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  },
+  {
+    caption: "Now look at the <strong>Dependency</strong> tab. Some countries source over 30% of their vehicle supply from a single partner. That's fragile — and it's been getting worse over time.",
+    action: async () => {
+      switchTabTo("dependency");
+      document.getElementById("analysis-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  },
+  {
+    caption: "What if Germany suddenly couldn't export? The map lights up — every country that depended on it takes a hit. You can switch between <strong>supply shock</strong> and <strong>demand shock</strong>.",
+    action: async () => {
+      switchTabTo("disruption");
+      // Render the disruption tab UI, then activate Germany as removed exporter
+      await drawDisruption();
+      await activateDisruption("Germany", "exporter");
+      document.getElementById("main-area").scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  },
+  {
+    caption: "Germany and Japan together cover most of the world's vehicle exports. If countries had to choose — who lands where? <strong>Blue</strong> is Germany's camp, <strong>red</strong> is Japan's, <strong>yellow</strong> are the swing countries.",
+    action: async () => {
+      deactivateDisruption();
+      document.getElementById("blocs-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  },
+  {
+    caption: "Here's the same data as a <strong>force simulation</strong>. Every country pulled toward one pole or the other, sized by import volume. The closer to the center, the harder the choice.",
+    action: async () => {
+      document.getElementById("gravity-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  },
+  {
+    caption: "The world isn't divided yet — but the data shows exactly how it could be. Now it's your turn: change the commodity, the year, the anchors. The story is everywhere.",
+    action: async () => { /* stay where we are */ },
+  },
+];
+
+function ensureTourBackdrop() {
+  let bd = document.getElementById("tour-backdrop");
+  if (!bd) {
+    bd = document.createElement("div");
+    bd.id = "tour-backdrop";
+    bd.className = "tour-backdrop";
+    document.body.appendChild(bd);
+  }
+}
+
+function removeTourElements() {
+  document.getElementById("tour-backdrop")?.remove();
+  document.getElementById("tour-card")?.remove();
+}
+
+async function renderTourStep() {
+  const step = TOUR_STEPS[tourState.step];
+  if (!step) { exitTour(); return; }
+
+  ensureTourBackdrop();
+
+  // Show a small loading-state for the card while the action runs
+  let card = document.getElementById("tour-card");
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "tour-card";
+    card.className = "tour-card";
+    document.body.appendChild(card);
+  }
+  const total  = TOUR_STEPS.length;
+  const isLast = tourState.step === total - 1;
+  const dots = TOUR_STEPS.map((_, i) => {
+    if (i < tourState.step)  return '<span class="tour-progress-dot done"></span>';
+    if (i === tourState.step) return '<span class="tour-progress-dot current"></span>';
+    return '<span class="tour-progress-dot"></span>';
+  }).join("");
+
+  card.innerHTML = `
+    <div class="tour-step-counter">Step ${tourState.step + 1} of ${total}</div>
+    <div class="tour-caption">${step.caption}</div>
+    <div class="tour-controls">
+      <div class="tour-progress">${dots}</div>
+      <div style="display:flex; gap:8px;">
+        <button class="tour-btn" id="tour-exit-btn">${isLast ? "Close" : "Skip tour"}</button>
+        <button class="tour-btn primary" id="tour-next-btn">${isLast ? "Explore on your own" : "Next →"}</button>
+      </div>
+    </div>`;
+
+  document.getElementById("tour-next-btn").addEventListener("click", async () => {
+    if (isLast) { exitTour(); return; }
+    tourState.step++;
+    await renderTourStep();
+  });
+  document.getElementById("tour-exit-btn").addEventListener("click", exitTour);
+
+  // Now actually run the step's side effect
+  try { await step.action(); } catch (err) { console.warn("[tour] step action failed:", err); }
+}
+
+async function startTour() {
+  if (tourState.active) return;
+  tourState.active = true;
+  tourState.step = 0;
+  await renderTourStep();
+}
+
+function exitTour() {
+  tourState.active = false;
+  removeTourElements();
+}
+
+(function attachTourButton() {
+  const btn = document.getElementById("tour-launcher-btn");
+  if (btn) btn.addEventListener("click", startTour);
+  // ESC to exit
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && tourState.active) exitTour();
+  });
+})();
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 init();

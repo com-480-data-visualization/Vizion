@@ -243,6 +243,61 @@ def bloc_data(commodity, iso_a, iso_b, year):
     return jsonify(result)
 
 
+# ── API: takeaway — headline cards for the storytelling strip ────────────────
+
+TAKEAWAY_MIN_IMP = 500_000_000  # $500M floor — suppresses tiny-economy noise
+
+
+@server.route("/api/takeaway/<commodity>/<int:year>")
+def takeaway(commodity, year):
+    """Compute the 4 headline cards for a given commodity + year.
+
+    Returns: largest importer, largest exporter, country with the highest
+    top-1 partner share (above a trade-volume floor), and a guidance card.
+    """
+    if commodity not in DATA:
+        return jsonify({})
+
+    panel  = DATA[commodity]["panel"]
+    suffix = f"_{year}"
+
+    biggest_imp = {"name": "", "value": 0}
+    biggest_exp = {"name": "", "value": 0}
+    most_exp    = {"country": "", "partner": "", "share": None,
+                   "country_imp": 0}
+
+    for key, val in panel.items():
+        if not key.endswith(suffix):
+            continue
+        name = val.get("n") or ""
+        imp  = val.get("imp") or 0
+        exp  = val.get("exp") or 0
+
+        if imp > biggest_imp["value"]:
+            biggest_imp = {"name": name, "value": imp}
+        if exp > biggest_exp["value"]:
+            biggest_exp = {"name": name, "value": exp}
+
+        if imp >= TAKEAWAY_MIN_IMP:
+            ti = val.get("ti") or []
+            if ti:
+                top = ti[0]
+                share = (top["v"] / imp * 100) if imp else 0
+                if most_exp["share"] is None or share > most_exp["share"]:
+                    most_exp = {
+                        "country": name,
+                        "partner": top["p"],
+                        "share":   round(share, 1),
+                        "country_imp": imp,
+                    }
+
+    return jsonify({
+        "largest_importer": biggest_imp,
+        "largest_exporter": biggest_exp,
+        "most_exposed":     most_exp,
+    })
+
+
 # ── Run ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
