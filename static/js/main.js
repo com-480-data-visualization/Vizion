@@ -317,8 +317,8 @@ async function activateDisruption(partner, type) {
   state.disruptionType    = type; // "exporter" or "importer"
   const commLabel = state.meta.commodities[state.commodity].label;
   const label = type === "exporter"
-    ? `⚡ ${partner} removed as ${commLabel} supplier — who loses their source?`
-    : `⚡ ${partner} stops importing ${commLabel} — who loses their buyer?`;
+    ? `⚡ ${partner} removed as ${commLabel} supplier: who loses their source?`
+    : `⚡ ${partner} stops importing ${commLabel}: who loses their buyer?`;
   document.getElementById("disruption-banner-text").textContent = label;
   document.getElementById("disruption-banner").style.display = "flex";
   await refreshDisruptionMap();
@@ -1509,7 +1509,7 @@ function updateBlocsLegend() {
   document.getElementById("blocs-legend").innerHTML = `
     <div class="legend-item"><span class="legend-swatch" style="background:#3b82f6"></span>${nameA}'s camp</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#ef4444"></span>${nameB}'s camp</div>
-    <div class="legend-item"><span class="legend-swatch" style="background:#eab308"></span>Swing — depends on both</div>
+    <div class="legend-item"><span class="legend-swatch" style="background:#eab308"></span>Swing (depends on both)</div>
     <div class="legend-item"><span class="legend-swatch" style="background:#475569"></span>Neutral</div>
   `;
 }
@@ -1566,6 +1566,18 @@ refreshAll = async function () {
   const slider = document.getElementById("year-slider");
   if (slider) slider.addEventListener("input", () => renderTakeaways());
 })();
+// Defensive: re-render on commodity-pill clicks (delegated, bubbles after the
+// per-pill handler runs, so state.commodity is already updated)
+(function attachCommodityStrip() {
+  const nav = document.getElementById("commodity-nav");
+  if (!nav) return;
+  nav.addEventListener("click", e => {
+    if (e.target.closest(".comm-pill")) {
+      // microtask delay so selectCommodity finishes first
+      Promise.resolve().then(renderTakeaways);
+    }
+  });
+})();
 // Initial render after init() finishes (re-poll briefly until commodity loaded)
 (function initialStripRender() {
   const tick = () => {
@@ -1615,7 +1627,7 @@ const TOUR_STEPS = [
     },
   },
   {
-    caption: "Let's start with <strong>Germany</strong> — a major vehicle exporter. You can see exactly where its trade goes: the US, China, the UK. The side panel breaks it down.",
+    caption: "Let's start with <strong>Germany</strong>, a major vehicle exporter. You can see exactly where its trade goes: the US, China, the UK. The side panel breaks it down.",
     action: async () => {
       await selectCountryByIso3("DEU");
       switchTabTo("history");
@@ -1623,14 +1635,14 @@ const TOUR_STEPS = [
     },
   },
   {
-    caption: "Now look at the <strong>Dependency</strong> tab. Some countries source over 30% of their vehicle supply from a single partner. That's fragile — and it's been getting worse over time.",
+    caption: "Now look at the <strong>Dependency</strong> tab. Some countries source over 30% of their vehicle supply from a single partner. That's fragile, and it's been getting worse over time.",
     action: async () => {
       switchTabTo("dependency");
       document.getElementById("analysis-section").scrollIntoView({ behavior: "smooth", block: "start" });
     },
   },
   {
-    caption: "What if Germany suddenly couldn't export? The map lights up — every country that depended on it takes a hit. You can switch between <strong>supply shock</strong> and <strong>demand shock</strong>.",
+    caption: "What if Germany suddenly couldn't export? The map lights up. Every country that depended on it takes a hit. You can switch between <strong>supply shock</strong> and <strong>demand shock</strong>.",
     action: async () => {
       switchTabTo("disruption");
       // Render the disruption tab UI, then activate Germany as removed exporter
@@ -1640,7 +1652,7 @@ const TOUR_STEPS = [
     },
   },
   {
-    caption: "Germany and Japan together cover most of the world's vehicle exports. If countries had to choose — who lands where? <strong>Blue</strong> is Germany's camp, <strong>red</strong> is Japan's, <strong>yellow</strong> are the swing countries.",
+    caption: "Germany and Japan together cover most of the world's vehicle exports. If countries had to choose, who lands where? <strong>Blue</strong> is Germany's camp, <strong>red</strong> is Japan's, <strong>yellow</strong> are the swing countries.",
     action: async () => {
       deactivateDisruption();
       document.getElementById("blocs-section").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1653,7 +1665,7 @@ const TOUR_STEPS = [
     },
   },
   {
-    caption: "The world isn't divided yet — but the data shows exactly how it could be. Now it's your turn: change the commodity, the year, the anchors. The story is everywhere.",
+    caption: "The world isn't divided yet, but the data shows exactly how it could be. Now it's your turn: change the commodity, the year, the anchors. The story is everywhere.",
     action: async () => { /* stay where we are */ },
   },
 ];
