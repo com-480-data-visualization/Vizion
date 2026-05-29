@@ -793,7 +793,7 @@ async function drawCompare() {
   const colorA = state.commodityColor;
   const colorB = "var(--cyan)";
   const nameA = statA.name || state.selectedIso3;
-  const nameB = statB?.name || iso3B || "—";
+  const nameB = statB?.name || iso3B || "n/a";
 
   // Stats cards
   const statsDiv = document.getElementById("compare-stats");
@@ -1536,17 +1536,17 @@ async function renderTakeaways() {
   strip.innerHTML = `
     <div class="takeaway-card">
       <div class="takeaway-label">Largest importer</div>
-      <div class="takeaway-title">${li.name || "—"}</div>
+      <div class="takeaway-title">${li.name || "n/a"}</div>
       <div class="takeaway-sub">${li.value ? fmtUSD(li.value) + " of " + commLabel : "no data"}</div>
     </div>
     <div class="takeaway-card exp">
       <div class="takeaway-label">Largest exporter</div>
-      <div class="takeaway-title">${le.name || "—"}</div>
+      <div class="takeaway-title">${le.name || "n/a"}</div>
       <div class="takeaway-sub">${le.value ? fmtUSD(le.value) + " of " + commLabel : "no data"}</div>
     </div>
     <div class="takeaway-card warn">
       <div class="takeaway-label">Highest exposure</div>
-      <div class="takeaway-title">${me.country || "—"}</div>
+      <div class="takeaway-title">${me.country || "n/a"}</div>
       <div class="takeaway-sub">${me.partner ? `${me.partner} supplies ${me.share}%` : "no concentration signal"}</div>
     </div>
     <div class="takeaway-card guide">
