@@ -8,6 +8,10 @@ machinery, vehicles) using UN Comtrade data, 2000–2023.
 
 **<[https://vizion-i8ez.onrender.com/](https://vizion-i8ez.onrender.com/)>**
 
+## Screencast
+
+**<https://youtu.be/44ZzzhC7nms>**
+
 > _Hosted on Render's free tier — the first request after a period of
 > inactivity may take **~30–60 seconds** to cold-start while the
 > container spins back up and the 5 commodity datasets load. Subsequent
