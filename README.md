@@ -85,7 +85,7 @@ Vizion/
 ```bash
 # 1. Clone the repo
 git clone <repo-url>
-cd com480-trade-viz
+cd Vizion
 
 # 2. Create a virtual environment
 python3 -m venv .venv
