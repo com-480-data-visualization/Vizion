@@ -1,7 +1,7 @@
 \documentclass[a4paper,10pt]{article}
 
 % ── Geometry & spacing ───────────────────────────────────────────────────────
-\usepackage[a4paper,margin=1.7cm,top=1.5cm,bottom=1.7cm]{geometry}
+\usepackage[a4paper,margin=1.7cm,top=1.5cm,bottom=1.5cm]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
@@ -46,7 +46,7 @@
 
 \usepackage[labelfont=bf, font=small, skip=2pt]{caption}
 
-\setlength{\parskip}{3.5pt}
+\setlength{\parskip}{2.5pt}
 
 % ── Callout boxes ──────────────────────────────────────────────────────────
 \newtcolorbox{decision}{%
@@ -98,7 +98,7 @@
   {\huge\bfseries Global Trade Explorer}\\[4pt]
   {\Large\color{muted}\itshape Dependencies, Flows \& Disruptions}\\[8pt]
   {\large COM-480 Data Visualization \textbullet{} Process Book}\\[4pt]
-  {\normalsize Team \textbf{Vizion} \textbullet{} Nicolas Khamis \& Charbel Raffoul \textbullet{} EPFL, Spring 2026}\\[6pt]
+  {\normalsize Team \textbf{Vizion} \textbullet{} Charbel Raffoul, Nicolas Khamis, Elyas El Khaldi, Kevin Drakebli \textbullet{} EPFL, Spring 2026}\\[6pt]
   {\color{accent}\rule{\linewidth}{1pt}}
 \end{center}
 
@@ -106,14 +106,15 @@
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\linewidth]{screenshots/00_hero.png}
+  \includegraphics[width=\linewidth]{screenshots/m3_hero.png}
 \end{figure}
 
 \vspace{-6pt}
 \begin{center}
 \small\color{muted}\itshape
-The deployed dashboard: choropleth entry point with year slider, commodity selector,
-and click-to-drill country panel. \href{https://vizion-lzz6.onrender.com}{\textbf{vizion-lzz6.onrender.com}}
+The final D3.js dashboard: choropleth entry point, an always-on storytelling strip,
+year slider, commodity selector, and a click-to-drill country panel.
+\href{https://vizion-lzz6.onrender.com}{\textbf{vizion-lzz6.onrender.com}}
 \end{center}
 
 \vspace{0.2cm}
@@ -122,18 +123,19 @@ and click-to-drill country panel. \href{https://vizion-lzz6.onrender.com}{\textb
 \textbf{\color{accent}About this document.}
 A reflective process book describing how the Global Trade Explorer was built across
 three milestones: from framing trade dependency as a structural question, through
-exploratory analysis on UN Comtrade, to a deployed multi-commodity interactive
-dashboard. We cover the path we took, the design decisions we made, the challenges
-we hit, and how the work was split across the team.
+an exploratory analysis and a first Dash prototype, to a full rewrite in
+\textbf{D3.js} with a what-if disruption simulator and a geopolitical bloc model.
+We cover the path we took, the design decisions we made, the challenges we hit, and
+how the work was split across the team.
 \end{tcolorbox}
 
-\vspace{0.4cm}
+\vspace{0.35cm}
 
 % ── Project stats sidebar ──────────────────────────────────────────────────
 \begin{center}
-\begin{tabular}{c@{\hspace{14pt}}c@{\hspace{14pt}}c@{\hspace{14pt}}c@{\hspace{14pt}}c}
-\textbf{\color{accent}5} & \textbf{\color{accent}24} & \textbf{\color{accent}393\,k} & \textbf{\color{accent}\textasciitilde 1\,200} & \textbf{\color{accent}7} \\
-\small commodities & \small years (2000--2023) & \small Comtrade rows & \small LOC in \texttt{app.py} & \small interactive views
+\begin{tabular}{c@{\hspace{13pt}}c@{\hspace{13pt}}c@{\hspace{13pt}}c@{\hspace{13pt}}c}
+\textbf{\color{accent}5} & \textbf{\color{accent}24} & \textbf{\color{accent}393\,k} & \textbf{\color{accent}\textasciitilde 3\,500} & \textbf{\color{accent}11} \\
+\small commodities & \small years (2000--2023) & \small Comtrade rows & \small lines of code & \small interactive views
 \end{tabular}
 \end{center}
 
@@ -156,28 +158,30 @@ happens when a corridor breaks.
 commodity family (energy, cereals, steel, machinery, vehicles), and the
 dashboard answers three questions:
 \begin{enumerate}
-  \item \textbf{Who trades what with whom?} (choropleth, Sankey)
-  \item \textbf{How dependent is each country, and on whom?} (top-partner share, top-3 share, HHI)
-  \item \textbf{How has this structure shifted, and what would happen if it were disrupted?} (top movers, dependency race, planned disruption simulator)
+  \item \textbf{Who trades what with whom?} (choropleth, Sankey flows)
+  \item \textbf{How dependent is each country, and on whom?} (top-partner share, top-3 share, dependency race)
+  \item \textbf{How has this structure shifted, and what happens if it breaks?} (top movers, disruption simulator, trade blocs, trade gravity)
 \end{enumerate}
 
 Existing platforms (OEC, World Bank, UN Comtrade dashboards) answer (1) well and
-(2) only partially; none address (3) interactively. That gap defined the project.
+(2) only partially; none address (3) interactively. That gap defined the project,
+and the third question became the centre of gravity for our final milestone.
 
 \subsection{Audience and design principle}
 
 The target audience is students, researchers, journalists, and engaged
 citizens with an interest in global economics or supply-chain resilience.
 They are not necessarily economists. From this we extracted the central
-design principle drawn from the \emph{Interaction} lecture:
+design principle, drawn from the \emph{Interaction} lecture:
 
 \begin{decision}
 \textbf{Progressive disclosure.}
-A first-time visitor must understand the dashboard in 10 seconds. A power user
-must be able to drill into HHI values, animate dependency over decades, and
-compare two countries side-by-side. We keep the front page deliberately simple
-(one map, one slider, one commodity dropdown) and push all advanced views into
-a tabbed side panel that opens only when a country is clicked.
+A first-time visitor must understand the dashboard in ten seconds. A power user
+must be able to drill into dependency curves, animate them over decades, simulate
+a supply shock, and re-draw the world as competing trade blocs. We keep the front
+page simple (one map, one slider, one commodity selector, four headline cards) and
+push every advanced view behind a click or a scroll. A 90-second guided tour gives
+newcomers a narrated path through the whole story.
 \end{decision}
 
 % ╔════════════════════════ 2. DATA ════════════════════════╗
@@ -187,581 +191,394 @@ We use the \textbf{UN Comtrade database}, which publishes annual bilateral trade
 flows at the HS (Harmonized System) product level. Our window is 2000--2023 and
 our scope is five HS chapters chosen for their geopolitical salience:
 \textbf{HS 27} mineral fuels, \textbf{HS 10} cereals, \textbf{HS 72} iron \&
-steel, \textbf{HS 84} machinery, \textbf{HS 87} vehicles. Energy (HS 27) was
-the natural pilot; the other four were added once the pipeline generalized.
+steel, \textbf{HS 84} machinery, \textbf{HS 87} vehicles. Energy (HS 27) was the
+natural pilot; the other four were added once the pipeline generalised.
 
 \begin{figure}[H]
   \centering
   \begin{subfigure}[t]{0.49\linewidth}
     \includegraphics[width=\linewidth]{screenshots/eda_evolution.png}
     \caption{\textbf{Global energy trade, 2000--2023.} The series grows roughly
-    6$\times$ over the window (from \$0.7\,T to \$4.0\,T) and four shocks are
-    visible: the 2008 financial crisis ($-35$\%), the 2014--16 oil crash, the
-    2020 COVID dip ($-25$\%), and the 2022 geopolitical spike. These shocks
-    directly informed the dashed annotations in the Trade History tab.}
+    6$\times$ (from \$0.7\,T to \$4.0\,T) with four visible shocks: the 2008
+    financial crisis ($-35$\%), the 2014--16 oil crash, the 2020 COVID dip
+    ($-25$\%), and the 2022 geopolitical spike.}
   \end{subfigure}\hfill
   \begin{subfigure}[t]{0.49\linewidth}
     \includegraphics[width=\linewidth]{screenshots/eda_concentration.png}
-    \caption{\textbf{Trade concentration analysis.} A long tail of small
-    economies sources $>50$\% of their energy imports from a single partner.
-    This skewed distribution motivated the \emph{Dependency} panel's
-    diversified / moderate / concentrated bands at 33\% and 50\% (visible in
-    panel D on page 4).}
+    \caption{\textbf{Trade concentration analysis.} A long tail of small economies
+    sources $>50$\% of their energy imports from a single partner. This skewed
+    distribution motivated the Dependency panel's diversified / moderate /
+    concentrated bands.}
   \end{subfigure}
 \end{figure}
 
-The EDA notebook (\texttt{notebooks/01\_exploratory\_data\_analysis.ipynb})
-confirmed three things that shaped every downstream choice: \textbf{(a)} trade
-values span five orders of magnitude in USD (forcing a log scale on the map);
-\textbf{(b)} dependency is heavily skewed; \textbf{(c)} four temporal shocks
-structure the entire 24-year window, turning ``show change over time'' into a
-richer story than expected.
+The EDA notebook confirmed three things that shaped every downstream choice:
+\textbf{(a)} trade values span five orders of magnitude in USD (forcing a log
+scale on the map); \textbf{(b)} dependency is heavily skewed; \textbf{(c)} four
+temporal shocks structure the entire 24-year window, turning ``show change over
+time'' into a richer story than expected.
 
 \subsection{Findings: what the data revealed}
 
-Before building any viz, the EDA already surfaced concrete claims:
+Before building any visualization, the EDA already surfaced concrete claims that
+later became the dashboard's stories:
 
 \begin{finding}
-\textbf{Energy trade more than sextupled between 2000 and 2022}, from
-\$0.7\,T to \$4.0\,T, with four discrete shocks (2008, 2014--16, 2020, 2022)
-visible in both imports and exports.
+\textbf{Energy trade more than sextupled between 2000 and 2022}, from \$0.7\,T to
+\$4.0\,T, with four discrete shocks (2008, 2014--16, 2020, 2022) visible in both
+imports and exports.
 \end{finding}
 \begin{finding}
-\textbf{The top energy importers are the world's largest economies}: USA,
-China, Japan, Germany, South Korea, India. The top exporters are a different
-set: Russia, Saudi Arabia, Canada, Norway, UAE. Trade is structurally a
-producer-vs-consumer split.
+\textbf{Top importers are the largest economies} (USA, China, Japan, Germany,
+South Korea, India); \textbf{top exporters are a different set} (Russia, Saudi
+Arabia, Canada, Norway, UAE). Trade is structurally a producer-vs-consumer split.
 \end{finding}
 \begin{finding}
-\textbf{Smaller economies are the most dependent.} The ``most-import-dependent''
-ranking is dominated by Bhutan, State of Palestine, Lesotho, Belarus, and
-Liberia, all sourcing $\geq 80$\% of their energy from a single partner. Large
-economies (USA, Germany) are well-diversified.
+\textbf{Smaller economies are the most dependent.} The most-import-dependent
+ranking is dominated by Bhutan, Palestine, Lesotho, Belarus, and Liberia, each
+sourcing $\geq 80$\% of their energy from a single partner. Large economies are
+well diversified.
 \end{finding}
 \begin{finding}
-\textbf{Three corridors dominate the energy world.} Canada$\rightarrow$USA is
-the single largest globally; Russia$\rightarrow$EU was the second-largest until
-2022; the Persian Gulf$\rightarrow$East Asia spine connects the Middle East to
-Japan, South Korea, and China.
-\end{finding}
-\begin{finding}
-\textbf{Three countries play both sides.} The USA, the Netherlands, and Belgium
-appear simultaneously in the top-importer and top-exporter rankings. The USA
-is a genuine dual-role actor; the Netherlands and Belgium are largely re-export
-hubs (Rotterdam, Antwerp), which is why we flag re-export inflation as a known
-caveat and use direct importer-reported shares for dependency calculations.
-\end{finding}
-\begin{finding}
-\textbf{Shocks are visible in both sides of the ledger.}
-Imports and exports tracked each other within 0.2 percentage points
-(50.1\% / 49.9\% global balance), which gave us confidence in the data: the
-2008 crash, the 2014--16 oil collapse, the 2020 COVID dip, and the 2022 spike
-all appear symmetrically in both series.
-\end{finding}
-\begin{finding}
-\textbf{Coverage is uneven across decades.}
-The first half of the window (2000--2005) has roughly 30\% fewer reporting
-countries than the second half. We kept the slider at 2000--2023 (the early
-years are useful as a baseline) but document the caveat and steer
-storytelling toward the post-2008 era where coverage is dense.
+\textbf{Three corridors dominate the energy world.} Canada$\rightarrow$USA is the
+single largest globally; Russia$\rightarrow$EU was second until 2022; the Persian
+Gulf$\rightarrow$East Asia spine connects the Middle East to Japan, Korea, China.
 \end{finding}
 
 \newpage
 
-% ╔════════════════════════ 3. EVOLUTION ════════════════════════╗
-\section{From sketch to prototype to product}
+% ╔════════════════════════ 3. THE PATH ════════════════════════╗
+\section{The path: from sketch to prototype to rewrite}
 
 \subsection{Milestone 1: framing and EDA}
 
-Milestone 1 was about understanding what we had. We acquired the Comtrade data
-via API, built a preprocessing pipeline (\texttt{src/preprocess.py},
-\texttt{src/data\_loader.py}, \texttt{src/utils.py}), and produced an
-exploratory notebook documenting coverage, shocks, and dependency structure.
-The deliverable was a static choropleth and a narrative explaining \emph{why}
-the project was worth doing.
+Milestone 1 was about understanding what we had. We acquired the Comtrade data via
+API, built a preprocessing pipeline (\texttt{src/preprocess.py},
+\texttt{data\_loader.py}, \texttt{utils.py}), and produced an exploratory notebook
+documenting coverage, shocks, and dependency structure. The deliverable was a
+static choropleth and a written argument that \emph{structure}, not totals, was
+the interesting question. We did not produce hand-drawn sketches; the EDA figures
+themselves \emph{were} the visual plan, and every later view is the direct,
+interactive expansion of one of them (see the mapping below).
 
-\subsection{Milestone 2: the interactive prototype}
+\subsection{Milestone 2: the Dash prototype}
 
-We chose \textbf{Dash (Plotly under the hood)} as the framework. The course
-nominally asks for D3, but Dash gave us the same interactivity on top of
-Plotly's mature geographic and Sankey primitives, in Python rather than a
-JavaScript bridge. The course rubric explicitly allows ``D3.js (and other)''.
+For the prototype we chose \textbf{Dash (Plotly under the hood)}: it gave us
+interactivity on top of Plotly's mature choropleth and Sankey primitives in
+Python, reusing the same pandas code that powered the EDA. By M2 we had a working
+multi-commodity dashboard with a choropleth, a click-to-drill side panel, and
+tabbed Trade History / Sankey / Dependency / Compare views, plus Top Movers and an
+animated Dependency Race.
 
 \begin{decision}
-\textbf{Dash + Plotly over raw D3.}
-Trade-off: less hand-control over the SVG, but instant access to Plotly's
-choropleth, Sankey, and animation frames; the same pandas code that did the
-EDA could power the dashboard. The cost was discovering Plotly's quirks
-(d3-format's ``G'' suffix, default tick rendering, layout margins) and
-working around them; the saving was a week of D3 boilerplate we did not
-have to write.
+\textbf{Prototype fast in Dash, then commit to D3.}
+Dash let us validate the whole concept in days rather than weeks. But it carried
+two costs that pushed us to rewrite for M3: Plotly's opinionated rendering limited
+fine visual control, and loading five pandas datasets at runtime repeatedly
+crashed Render's 512\,MB free tier (out-of-memory). The prototype proved the
+\emph{idea}; the rewrite delivered the \emph{product}.
 \end{decision}
 
-\subsection{From plan to prototype: M1 findings become M3 views}
+\subsection{Milestone 3: the rewrite to D3.js}
 
-Our milestone 1 deliverable consisted of the static EDA figures shown on
-page 2 plus a written narrative arguing that \emph{structure}, not totals,
-was the interesting question. Those figures \emph{were} the plan: each
-static observation set the agenda for a corresponding interactive view in
-the dashboard. The mapping below traces that expansion.
+For the final milestone we rebuilt the entire frontend in \textbf{pure D3.js},
+served by a thin \textbf{Flask} backend. This was the single biggest decision of
+the project and it unlocked everything that makes the final product distinctive.
+
+\begin{decision}
+\textbf{Pre-compute everything; serve static JSON; render with D3.}
+A build script (\texttt{build\_data.py}) turns the processed CSVs into compact
+per-commodity JSON blobs once, at build time. Flask just serves them; \emph{no
+pandas runs at request time}. This eliminated the OOM crashes, cut the cold start
+dramatically, and gave us full control over every SVG element, which the three
+signature M3 views (disruption, blocs, gravity) absolutely required.
+\end{decision}
+
+\subsection{From M1 findings to final views}
+
+Each static EDA observation set the agenda for an interactive view. The mapping
+makes the ``expand the sketch'' path explicit:
 
 \begin{table}[H]
 \centering\small
-\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}p{5.2cm}p{1cm}p{9.6cm}@{}}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{5.4cm}p{0.7cm}p{9.7cm}@{}}
 \toprule
-\textbf{M1 plan (static EDA finding)} & & \textbf{M3 expansion (interactive view)} \\
+\textbf{M1 finding (static EDA)} & & \textbf{Final interactive view (D3)} \\
 \midrule
-Global energy trade 6$\times$ growth with four shocks visible (line chart, fig.~2a) &
-$\rightarrow$ &
-\textbf{Trade History tab (B)} with shock-band annotations and click-to-update country selection. \\
-Top-1 partner share is heavily skewed (histogram, fig.~2b) &
-$\rightarrow$ &
-\textbf{Dependency panel (D)} with diversified / moderate / concentrated bands and dual top-1 / top-3 lines over time. \\
-Ranking of the most-import-dependent countries (static bar, fig.~2b) &
-$\rightarrow$ &
-\textbf{Dependency Race (F)} animated ranking across all 24 years and 5 commodities. \\
-EDA observation: ``trade is structurally a producer-vs-consumer split'' &
-$\rightarrow$ &
-\textbf{Compare tab (G)} enabling direct head-to-head comparison of two countries' totals, history, and dependency. \\
-EDA observation: three corridors dominate the energy world &
-$\rightarrow$ &
-\textbf{Sankey flow (C)} showing every country's bilateral structure on demand. \\
-Visible YoY shocks (2008, 2020, 2022) in the global series &
-$\rightarrow$ &
-\textbf{Top Movers (E)} surfacing the biggest movers in every year, every commodity. \\
+6$\times$ growth with four shocks &$\rightarrow$& \textbf{Trade History} with shock context, per country \\
+Top-1 share is heavily skewed &$\rightarrow$& \textbf{Dependency} panel with diversified/moderate/concentrated bands \\
+Most-dependent-country ranking &$\rightarrow$& \textbf{Dependency Race} animated across 24 years \\
+Producer-vs-consumer split &$\rightarrow$& \textbf{Compare} and \textbf{Top Traders} \\
+Three corridors dominate &$\rightarrow$& \textbf{Sankey flows} on demand \\
+``what if a corridor breaks?'' &$\rightarrow$& \textbf{Disruption}, \textbf{Trade Blocs}, \textbf{Trade Gravity} (new in M3) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The pattern is consistent: \emph{static EDA finding $\rightarrow$ interactive
-view that lets the user verify it for any country, year, and commodity}. We
-did not produce hand-drawn sketches at M1; the EDA figures themselves
-\emph{were} the visual plan, and the dashboard is their direct expansion.
-
-\subsection{The seven visualizations}
-
-\begin{figure}[H]
-  \centering
-  \begin{subfigure}[t]{0.49\linewidth}
-    \includegraphics[width=\linewidth]{screenshots/02_history.png}
-    \caption{\textbf{(B) Trade History.}
-    \emph{Question: how has this country's trade changed?}
-    Dual line chart (imports and exports) with the active year highlighted.
-    The shock-band annotations let users instantly contextualize a dip:
-    is this 2008, 2020, 2022, or something country-specific?
-    \emph{Lecture connection:} Time-series \& Annotation.}
-  \end{subfigure}\hfill
-  \begin{subfigure}[t]{0.49\linewidth}
-    \includegraphics[width=\linewidth]{screenshots/03_sankey.png}
-    \caption{\textbf{(C) Trade Flows (Sankey).}
-    \emph{Question: who does this country buy from and sell to, and in what
-    proportion?}
-    Ribbon width $\propto$ USD; left = import sources, right = export
-    destinations. The orange/blue split mirrors the import/export colour code
-    used throughout.
-    \emph{Lecture connection:} Graphs \& networks.}
-  \end{subfigure}
-\end{figure}
-
-\vspace{-8pt}
-
-\begin{figure}[H]
-  \centering
-  \begin{subfigure}[t]{0.49\linewidth}
-    \includegraphics[width=\linewidth]{screenshots/03_dependency.png}
-    \caption{\textbf{(D) Dependency.}
-    \emph{Question: how concentrated is this country's supply?}
-    Top-partner and top-3 partner shares plotted across 2000--2023 with
-    diversified / moderate / concentrated bands so a non-expert can read
-    risk at a glance.
-    \emph{Lecture connection:} Rankings; Perception (banded ranges).}
-  \end{subfigure}\hfill
-  \begin{subfigure}[t]{0.49\linewidth}
-    \includegraphics[width=\linewidth]{screenshots/06_compare.png}
-    \caption{\textbf{(G) Compare.}
-    \emph{Question: how does country X differ from country Y?}
-    Two countries side-by-side on totals, overlaid history, and overlaid
-    dependency. Used to contrast peers (Germany vs Japan on steel, USA vs
-    China on machinery).
-    \emph{Lecture connection:} Small multiples.}
-  \end{subfigure}
-\end{figure}
-
-\vspace{-8pt}
-
-\begin{figure}[H]
-  \centering
-  \begin{subfigure}[t]{0.49\linewidth}
-    \includegraphics[width=\linewidth]{screenshots/04_movers.png}
-    \caption{\textbf{(E) Top Movers.}
-    \emph{Question: who shifted the most this year vs last?}
-    Diverging bars (green gainers / red losers) of YoY \% change with a
-    trade-volume floor so small economies don't dominate the ranking.
-    \emph{Lecture connection:} Change over time.}
-  \end{subfigure}\hfill
-  \begin{subfigure}[t]{0.49\linewidth}
-    \includegraphics[width=\linewidth]{screenshots/05_race.png}
-    \caption{\textbf{(F) Dependency Race.}
-    \emph{Question: which countries are diversifying, which are locking in?}
-    Animated ranking of ``\% of imports from top single partner'' across
-    24 years, playing back decades of structural change in seconds.
-    \emph{Lecture connection:} Animation.}
-  \end{subfigure}
-\end{figure}
-
-\subsection{Iteration: before \& after}
-
-A handful of fixes that look small in isolation but materially raised the
-prototype's readability. We treat these as a record of the craft involved.
-
-\begin{tcolorbox}[colback=warmSoft!50, colframe=warm, boxrule=0.4pt, arc=2pt, left=8pt, right=8pt, top=3pt, bottom=3pt]
-\small
-\textbf{(i) Currency rendering: \texttt{\$100G} $\rightarrow$ \texttt{\$100B}.}
-Plotly's d3-format uses SI prefixes, so \texttt{tickformat="\$.2s"} produced
-\texttt{\$100G} (giga) instead of the familiar \texttt{B} (billion). We
-dropped the d3 format and used \texttt{tickprefix="\$"} so Plotly's native
-formatter (which uses \texttt{B}) takes over, and replaced hover
-\texttt{\%\{y:\$.3s\}} with pre-formatted \texttt{customdata} strings.
-\\[3pt]
-\textbf{(ii) Top Movers \% precision: ``+37.45\%'' $\rightarrow$ ``+37\%''.}
-The default printed full float precision in hovers. We changed the format
-spec to \texttt{:+.0f} so the chart reads as a structural change, not a
-spurious-precision one.
-\\[3pt]
-\textbf{(iii) RadioItems readability.}
-The flow-toggle's default browser-blue radio dots and link-blue label text
-were invisible on the dark panel. We set \texttt{labelStyle.color} to the
-panel's \texttt{TEXT\_MAIN} and \texttt{inputStyle.accentColor} to the
-gainer-green used elsewhere.
-\\[3pt]
-\textbf{(iv) Compare-tab title \& legend overlap.}
-Plotly's default put the title and the legend in the same vertical band.
-We widened the top margin to 70\,px and pinned title \texttt{y=0.97},
-legend \texttt{y=1.08}, so neither encroached on the other.
-\end{tcolorbox}
-
-\subsection{Colour, typography, accessibility}
-
-The interface uses a \textbf{dark base} (\#0F172A / \#1E293B) for the panels
-to keep the choropleth's saturated YlOrRd the dominant element. We deliberately
-chose a \emph{single-hue sequential} scale rather than a divergent one because
-the trade value has no meaningful zero-crossing (the Perception lecture's
-discussion of pre-attentive features informed this). Import-orange
-(\#F59E0B) and export-blue (\#3B82F6) are used consistently across every
-view so a colour acts as a stable signifier. The font stack is the system
-sans (San Francisco / Segoe UI / Roboto) for fast rendering and good cross-OS
-fidelity. We checked the YlOrRd scale against a deuteranopia simulator and
-the ordering remains preserved.
-
 \newpage
 
-% ╔════════════════════════ 4. ARCHITECTURE ════════════════════════╗
-\section{Architecture and implementation}
+% ╔════════════════════════ 4. THE DASHBOARD ════════════════════════╗
+\section{The final dashboard}
 
-\subsection{Data flow}
+\subsection{Core exploration}
+
+The entry point is a log-scaled choropleth with a year slider (2000--2023), a
+commodity selector, and an import/export/total toggle. Clicking any country opens
+a side panel with its imports, exports, balance, and top-partner bars, plus four
+tabs: \textbf{Trade History} (imports vs.\ exports over time), \textbf{Trade
+Flows} (a Sankey of top bilateral partners), \textbf{Dependency} (top-1 and top-3
+partner share over time, with risk bands), and \textbf{Compare} (two countries
+side by side). Two always-visible sections below, \textbf{Top Traders} and the
+animated \textbf{Dependency Race}, give global context.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\linewidth]{screenshots/m3_dependency.png}
+  \caption{\textbf{Dependency panel.} Two intuitive lines (top-1 and top-3 partner
+  share) tracked over 24 years, with diversified / moderate / concentrated bands so
+  a non-economist can read concentration risk at a glance. \emph{Lecture
+  connections:} Rankings; Perception (banded ranges); Time-series.}
+\end{figure}
+
+\subsection{The signature M3 features}
+
+These three views are what set the project apart from existing trade dashboards.
+They answer the third question: \emph{what happens when the world stops being
+neutral?}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.82\linewidth]{screenshots/m3_disruption.png}
+  \caption{\textbf{Disruption Simulator.} Remove a country from the network and the
+  map recolours by who is hit. A \emph{supply-shock} mode (remove it as an exporter)
+  shows who loses a source; a \emph{demand-shock} mode (remove it as an importer)
+  shows who loses a customer, a completely different set of countries. This
+  two-sided framing is the feature's core insight.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[t]{0.49\linewidth}
+    \includegraphics[width=\linewidth]{screenshots/m3_blocs.png}
+    \caption{\textbf{Trade Blocs.} Pick two anchor economies; every country is
+    coloured by which camp it falls into (blue / red) or whether it is a
+    \emph{swing} state depending on both (yellow). An adjustable threshold and year
+    redraw the geopolitical map of alignment.}
+  \end{subfigure}\hfill
+  \begin{subfigure}[t]{0.49\linewidth}
+    \includegraphics[width=\linewidth]{screenshots/m3_gravity.png}
+    \caption{\textbf{Trade Gravity.} The same data as a D3 force simulation: each
+    country is pulled toward two poles by how much it depends on each, sized by
+    import volume. Distance from the centre measures how hard its choice would be.}
+  \end{subfigure}
+\end{figure}
+
+\subsection{Storytelling layer}
+
+Two complementary layers turn the tool into a narrative, addressing the rubric's
+``tell a data story'' requirement directly in the product:
+
+\begin{itemize}
+  \item \textbf{Always-on takeaway strip.} Four headline cards above the map
+  (largest importer, largest exporter, highest single-partner exposure, and a
+  ``how to read this'' guide) update on every commodity or year change, so every
+  view has an instant punchline.
+  \item \textbf{90-second guided tour.} A ``Take the tour'' button launches a
+  seven-step narrated walkthrough that mirrors our screencast: vehicles 2023
+  $\rightarrow$ Germany $\rightarrow$ dependency $\rightarrow$ a Germany supply
+  shock $\rightarrow$ the Germany-vs-Japan bloc map $\rightarrow$ trade gravity
+  $\rightarrow$ ``now explore on your own.''
+\end{itemize}
+
+% ╔════════════════════════ 5. ARCHITECTURE ════════════════════════╗
+\section{Architecture and implementation}
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
-  font=\small,
-  node distance=8mm and 10mm,
-  box/.style={draw=accent, fill=accentSoft, rounded corners=2pt, minimum height=9mm, minimum width=24mm, align=center, inner sep=3pt},
-  src/.style={draw=warm, fill=warmSoft, rounded corners=2pt, minimum height=9mm, minimum width=24mm, align=center, inner sep=3pt},
-  out/.style={draw=leaf, fill=leaf!10, rounded corners=2pt, minimum height=9mm, minimum width=24mm, align=center, inner sep=3pt},
+  font=\footnotesize,
+  node distance=7mm and 9mm,
+  box/.style={draw=accent, fill=accentSoft, rounded corners=2pt, minimum height=9mm, minimum width=22mm, align=center, inner sep=2pt},
+  src/.style={draw=warm, fill=warmSoft, rounded corners=2pt, minimum height=9mm, minimum width=22mm, align=center, inner sep=2pt},
+  rt/.style={draw=leaf, fill=leaf!10, rounded corners=2pt, minimum height=9mm, minimum width=22mm, align=center, inner sep=2pt},
   arr/.style={-Latex, accent, thick},
 ]
   \node[src] (api) {UN Comtrade\\API};
-  \node[box, right=of api] (raw) {\texttt{data/raw/}\\\scriptsize HS 10/27/72/84/87\\\scriptsize per-commodity CSVs};
-  \node[box, right=of raw] (pp) {\texttt{src/preprocess\_}\\\texttt{multi.py}\\\scriptsize ISO-3 + clean};
-  \node[box, right=of pp] (proc) {\texttt{data/processed/}\\\scriptsize country\_summary\\\scriptsize partner\_flow};
-  \node[box, below=10mm of proc] (app) {\texttt{app.py} (Dash)\\\scriptsize callbacks + Plotly};
-  \node[out, left=of app] (gun) {gunicorn\\\scriptsize 1 worker, 120s};
-  \node[out, left=of gun] (web) {Render free tier\\\scriptsize eu-frankfurt};
-  \node[out, left=of web] (user) {Browser};
+  \node[box, right=of api] (raw) {\texttt{data/raw/}\\\scriptsize 5 HS chapters};
+  \node[box, right=of raw] (pp) {\texttt{preprocess}\\\scriptsize pandas, ISO-3};
+  \node[box, right=of pp] (build) {\texttt{build\_data.py}\\\scriptsize CSV $\to$ JSON};
+  \node[box, right=of build] (json) {\texttt{static/data/}\\\scriptsize pre-built JSON};
+  \node[rt, below=8mm of json] (flask) {\texttt{app.py}\\\scriptsize Flask (serves JSON)};
+  \node[rt, left=of flask] (d3) {D3.js\\\scriptsize \texttt{main.js}};
+  \node[rt, left=of d3] (web) {Render\\\scriptsize gunicorn};
+  \node[rt, left=of web] (user) {Browser};
 
   \draw[arr] (api) -- (raw);
   \draw[arr] (raw) -- (pp);
-  \draw[arr] (pp) -- (proc);
-  \draw[arr] (proc) -- (app);
-  \draw[arr] (app) -- (gun);
-  \draw[arr] (gun) -- (web);
+  \draw[arr] (pp) -- (build);
+  \draw[arr] (build) -- (json);
+  \draw[arr] (json) -- (flask);
+  \draw[arr] (flask) -- (d3);
+  \draw[arr] (d3) -- (web);
   \draw[arr] (web) -- (user);
 \end{tikzpicture}
-\caption*{\small From a single API call to a pixel on the user's screen. Build-time
-artefacts (orange) are produced once; runtime artefacts (green) are spun up by
-Render on each cold start.}
+\caption*{\small Build-time artefacts (amber/navy) run once; the runtime path
+(green) is pure static JSON served by Flask to a D3 frontend. No pandas at request
+time, which is what fixed the free-tier memory crashes.}
 \end{figure}
 
-\vspace{-6pt}
-
-\subsection{Layered stack}
+\vspace{-4pt}
 
 \begin{table}[H]
 \centering\small
-\begin{tabular}{@{}p{4.0cm}p{11.7cm}@{}}
+\begin{tabular}{@{}p{3.6cm}p{12.2cm}@{}}
 \toprule
 \textbf{Layer} & \textbf{What we used} \\
 \midrule
-Data ingestion & UN Comtrade API via \texttt{comtradeapicall};
-\texttt{src/download\_comtrade.py} (HS 27) and
-\texttt{src/download\_multi\_commodity.py} (HS 10, 72, 84, 87) \\
-Preprocessing & pandas, NumPy; \texttt{src/preprocess.py},
-\texttt{src/preprocess\_multi.py}; ISO-3 normalization in \texttt{src/utils.py} \\
-Exploratory analysis & Jupyter notebooks in \texttt{notebooks/}; matplotlib for
-static figures saved to \texttt{outputs/figures/} \\
-Frontend \& interactivity & Dash 2.x (Plotly under the hood); a single
-\texttt{app.py} with Dash callbacks; no separate JS toolchain \\
-Visualizations & Plotly \texttt{choropleth}, \texttt{scatter} (history),
-\texttt{sankey} (flows), \texttt{bar} (dependency / movers / race),
-\texttt{frames} (race animation) \\
-Hosting & Render free tier (\textsc{eu-frankfurt}), gunicorn with
-\texttt{server = app.server}; \texttt{render.yaml} pins Python 3.11; auto-deploy
-on \texttt{git push origin main} \\
-Source control & Two-remote workflow: personal
-\texttt{NicolasKhms/global\_trade\_viz} as a safety net, class
-\texttt{com-480-data-visualization/Vizion} as the submission target \\
+Ingestion & UN Comtrade API via \texttt{comtradeapicall}; per-HS-chapter downloaders \\
+Preprocessing & pandas, NumPy; ISO-3 normalisation; \texttt{build\_data.py} emits compact JSON \\
+Backend & \textbf{Flask}, serving pre-built JSON; \texttt{server} object run under gunicorn \\
+Frontend & \textbf{D3.js v7} (+ d3-sankey, topojson); one \texttt{main.js}, no build step \\
+Views & choropleth, Sankey, line/bar charts, animated race, force simulation, dual-mode disruption map \\
+Hosting & Render free tier (\textsc{eu-frankfurt}); auto-deploy on push;
+\href{https://vizion-lzz6.onrender.com}{vizion-lzz6.onrender.com} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{From a fresh clone to a running app}
-
-\begin{tcolorbox}[colback=warmSoft!50, colframe=warm, boxrule=0.4pt, arc=2pt, fontupper=\ttfamily\small, left=8pt, right=8pt]
-git clone https://github.com/com-480-data-visualization/Vizion\\
-cd Vizion \&\& python3 -m venv .venv \&\& source .venv/bin/activate\\
-pip install -r requirements.txt\\
-python app.py\hspace{2em}\# http://127.0.0.1:8050
-\end{tcolorbox}
-
-For the public demo no setup is needed:
-\href{https://vizion-lzz6.onrender.com}{vizion-lzz6.onrender.com}
-(first request after inactivity cold-starts for $\sim$30--60\,s).
-
-% ╔════════════════════════ 5. CHALLENGES ════════════════════════╗
+% ╔════════════════════════ 6. CHALLENGES ════════════════════════╗
 \section{Challenges and design decisions}
 
-\subsection{Data engineering}
-
 \begin{challenge}
-\textbf{The UN Comtrade free tier limits us to 500 API calls per day.}
-The world has 200+ reporting countries and we need 24 years across 5
-commodities, well beyond a single day's quota.
+\textbf{Render's free tier (512\,MB) kept killing the Dash app.} Loading five
+pandas datasets at request time blew the memory cap and crashed the worker.
 \end{challenge}
 \begin{decision}
-\textbf{Aggressive caching per commodity.}
-We download once per HS chapter into a single raw CSV, then build derived files
-that the app loads at startup. Re-running the dashboard never re-hits the API.
+\textbf{Move all computation to build time.} \texttt{build\_data.py} pre-computes
+every view's data into static JSON. The runtime process holds almost nothing in
+memory, so it fits comfortably and starts fast. This is also why the rewrite to D3
+was worth it, not just aesthetics.
+\end{decision}
+
+\begin{challenge}
+\textbf{The disruption question has two valid answers.} ``Remove Germany'' could
+mean it stops selling \emph{or} stops buying, and these hit opposite sets of
+countries.
+\end{challenge}
+\begin{decision}
+\textbf{Ship both, behind one toggle.} Supply-shock and demand-shock modes reuse
+the same map but query export-side vs import-side dependence. The toggle makes the
+symmetry of trade visible, which no comparable dashboard does.
 \end{decision}
 
 \begin{challenge}
 \textbf{About 10\% of partner rows have no ISO-3 code} (inconsistent spellings,
-aggregate entities like ``World'' and ``Areas, nes'').
+aggregates like ``World''), and the topojson map uses numeric IDs.
 \end{challenge}
 \begin{decision}
-\textbf{Manual override table + hard exclusion list} in \texttt{src/utils.py};
-aggregates are filtered out before any bilateral analysis, so the choropleth
+\textbf{A manual override table plus a numeric-to-ISO3 lookup} in the pipeline and
+the frontend; aggregates are filtered before any bilateral analysis so the map
 never tries to colour ``World''.
 \end{decision}
 
 \begin{challenge}
-\textbf{Re-export inflation for hub countries (NLD, BEL, SGP)} makes naive
-top-partner counts misleading: these countries re-route huge volumes they
-neither consume nor produce.
+\textbf{Re-export inflation} (Netherlands, Belgium, Singapore) makes naive
+top-partner counts misleading.
 \end{challenge}
 \begin{decision}
-\textbf{Direct importer-reported share as the headline metric}, caveat
-documented in the EDA. We chose not to attempt re-export attribution (its
-own research problem) but the metric we display answers the user's actual
-resilience question.
-\end{decision}
-
-\subsection{Visualization \& UX}
-
-\begin{challenge}
-\textbf{Trade values span five orders of magnitude.}
-On a linear colour scale, everyone outside the top 10 looked identical.
-\end{challenge}
-\begin{decision}
-\textbf{Log-scaled choropleth.}
-Surfaces small-but-significant traders (Switzerland, Austria) without
-losing the giants. We confirmed against
-\texttt{outputs/figures/00\_trade\_value\_distribution.png} before committing.
+\textbf{Use direct importer-reported shares} as the headline metric and document
+the caveat, rather than attempting full re-export attribution.
 \end{decision}
 
 \begin{challenge}
-\textbf{Information overload.}
-Showing flows + history + dependency + compare at once overwhelms the user,
-but hiding them defeats the purpose.
+\textbf{The raw energy file is 122\,MB, above GitHub's 100\,MB limit.}
 \end{challenge}
 \begin{decision}
-\textbf{Tabs inside the country side panel.}
-The main view stays clean (just the map); a click opens a side panel with four
-tabs. Practical embodiment of the progressive-disclosure principle.
-\end{decision}
-
-\subsection{Engineering \& deployment}
-
-\begin{challenge}
-\textbf{Render's free tier caps memory at 512\,MB.}
-All five commodity datasets in pandas use 300--500\,MB at peak, right on
-the edge of the cap.
-\end{challenge}
-\begin{decision}
-\textbf{Single-worker gunicorn + 120\,s startup timeout.}
-\texttt{--workers 1} keeps a single in-memory copy; \texttt{--timeout 120}
-covers the cold-start CSV load. Lazy-loading was the planned fallback but the
-dashboard fit without it.
-\end{decision}
-
-\begin{challenge}
-\textbf{Raw energy file is 122\,MB, above GitHub's 100\,MB per-file limit.}
-We need data committed so a fresh container can boot, but GitHub rejects it.
-\end{challenge}
-\begin{decision}
-\textbf{Whitelist-based \texttt{.gitignore}.}
-Ignore everything in \texttt{data/processed/} by default, then explicitly
-re-include the small derived files the app loads
-(\texttt{*\_country\_summary.csv}, \texttt{*\_partner\_flow.csv}). The 122\,MB
-raw aggregate stays out; the deploy still works.
+\textbf{Whitelist-based \texttt{.gitignore}:} commit only the small derived files
+the app needs; the large raw aggregate stays out, and a fresh clone still runs.
 \end{decision}
 
 \newpage
 
-% ╔════════════════════════ 6. CASE STUDY ════════════════════════╗
-\section{Case study: the Dependency panel}
+% ╔════════════════════════ 7. CASE STUDY ════════════════════════╗
+\section{Case study: the Trade Blocs view}
 
-The Dependency panel (view D) is the most distinctive part of the dashboard
-and the one that took the longest to settle on. This is its design history.
+The Trade Blocs view is the project's most original idea and the hardest to get
+right. This is its design history.
 
-\textbf{The question.} \emph{For a given country and commodity, how
-concentrated is the import side over time, and is it improving or
-worsening?} An economist would answer with the Herfindahl-Hirschman Index;
-a journalist would say ``what \% comes from one partner?''. We need both
-to land at once.
+\textbf{The question.} \emph{If the world fragmented into two camps anchored by
+two economies, where would every other country land?} It is a what-if, not a
+description, which is exactly the kind of question existing dashboards cannot ask.
 
 \textbf{Alternatives we considered.}
 \begin{itemize}
-  \item \emph{Stacked bar of top-5 partners, year on x-axis.}
-  Rejected: the eye can't compare partner shares across years easily
-  because every band shifts position.
-  \item \emph{Pie chart of partner shares for a single year.}
-  Rejected: discards the temporal dimension, which is half the story.
-  \item \emph{HHI line alone.}
-  Rejected: the HHI is opaque to a non-economist; it scores ``low'' at
-  0.15 but most readers would not know whether that is good or bad.
-  \item \emph{A pair of lines: top-1 share and top-3 share, with
-  contextual bands.} \textbf{Chosen.} Two intuitive numbers, both moving
-  through time, with banded background colour
-  (\emph{diversified / moderate / concentrated}) so a reader without an
-  economics background can read risk at a glance.
+  \item \emph{Two separate choropleths} (share-from-A, share-from-B). Rejected:
+  forces the eye to compare two maps; the alignment story disappears.
+  \item \emph{A single ``A minus B'' diverging map.} Rejected: hides the swing
+  states, which are the most interesting countries.
+  \item \emph{Categorical camps (blue / red / yellow swing) with an adjustable
+  threshold, shown as a map \emph{and} a scatter.} \textbf{Chosen.} The map gives
+  geography; the scatter (share-from-A vs share-from-B) gives the exact position;
+  the threshold lets the user test how robust an alignment is.
 \end{itemize}
 
 \begin{decision}
-\textbf{Two metrics, not one; bands, not labels.}
-A single dependency score (HHI) is precise but unreadable. Two
-intuitive metrics (top-1 and top-3 share) plus three labelled regions
-let the user understand structure \emph{and} risk in one view, without
-prior economics training.
+\textbf{Show the swing states, and let the user move the line.} The yellow swing
+countries, those depending meaningfully on both anchors, are the punchline: they
+are the ones with the most to lose from fragmentation. The threshold slider turns
+a static claim into an interactive argument. The \textbf{Trade Gravity} force
+simulation then re-expresses the same data as physics, making ``how hard is the
+choice?'' visceral rather than categorical.
 \end{decision}
 
-\textbf{What the user can extract.} A glance at Switzerland (panel D on
-page 4) tells the story: top-1 share rose from $\sim$20\% in 2000 to a
-moderate $\sim$40\% by 2010 and has stabilised since; top-3 share has
-sat above 60\% for two decades, putting Switzerland firmly in the
-moderately-concentrated band. Compare Germany 2018 (well-diversified)
-to Germany 2023 (climbing toward concentrated after the Russia pivot)
-and the panel does the talking.
-
-% ╔════════════════════════ 7. REFLECTION ════════════════════════╗
+% ╔════════════════════════ 8. REFLECTION ════════════════════════╗
 \section{Reflection}
 
-\subsection{What we would do differently}
+\subsection{What we learned}
 
-\textbf{Start with the dependency story sooner.} We spent the first weeks
-on choropleth polish; the dependency view (now the dashboard's most
-distinctive feature) only landed in the second prototype iteration. In
-hindsight, the structural questions \emph{were} the project from day
-one; the choropleth is just the entry point.
+\textbf{Prototype throwaway, then commit.} The Dash prototype was the right call
+for validating the concept quickly, and rewriting in D3 was the right call for the
+final product. Trying to do either alone would have been worse: pure-D3 from day
+one would have been slow to iterate; staying in Dash would have capped both
+performance and visual ambition.
 
-\textbf{Budget more time for performance.} Render's cold start is fine
-for graders but mediocre for real users. A future iteration would
-pre-aggregate per-country JSON blobs at preprocessing time and serve
-them as static files, eliminating the pandas-in-memory dependency.
-
-\textbf{Build the disruption simulator early.} It is the headline
-differentiator versus OEC and World Bank dashboards; pushing it to M3
-meant we could not iterate on it.
+\textbf{The structural questions were the project.} We spent early effort polishing
+the choropleth, but the dependency, disruption, and bloc views are what make the
+dashboard worth using. In hindsight we would have reached the what-if features
+sooner.
 
 \subsection{Known limitations}
-
 \begin{itemize}
-  \item Values are in nominal USD; no inflation adjustment is applied,
-  so absolute magnitudes inflate over time.
-  \item Mirror-trade asymmetry is not reconciled; we prefer
-  importer-reported values for dependency calculations.
+  \item Values are nominal USD; no inflation adjustment, so magnitudes inflate over time.
+  \item Mirror-trade asymmetry is not reconciled; we prefer importer-reported values.
   \item Re-export inflation is documented but not corrected.
-  \item 2023 coverage is incomplete (some reporters had not filed yet
-  when we pulled the data).
-  \item Cold start on Render's free tier is 30--60\,s.
+  \item 2023 coverage is partial; Render's free tier cold-starts in 30--60\,s.
 \end{itemize}
 
-% ╔════════════════════════ 8. PEER ════════════════════════╗
+% ╔════════════════════════ 9. PEER ════════════════════════╗
 \section{Peer assessment}
-
-The split below is based on the git history on the class repository,
-cross-checked against the team's working notes.
 
 \begin{table}[H]
 \centering\small
-\begin{tabular}{@{}p{4.3cm}p{8cm}p{3cm}@{}}
+\begin{tabular}{@{}p{4.6cm}p{8.2cm}p{2.8cm}@{}}
 \toprule
 \textbf{Area} & \textbf{Tasks} & \textbf{Owner} \\
 \midrule
-Project scaffold & Initial repo, Milestone 1 PDF, README folder structure & Charbel Raffoul \\
-Data acquisition & Comtrade API integration, HS 27 pipeline & Nicolas Khamis \\
-EDA \& notebooks & Quality assessment, exploratory analysis, shock ID & Nicolas Khamis \\
-Multi-commodity pipeline & HS 10/72/84/87 downloads, schema unification & Nicolas Khamis \\
-Dashboard core & Choropleth, slider, country side panel & Nicolas Khamis \\
-Tabbed views & Trade History, Sankey, Dependency, Compare & Nicolas Khamis \\
-Global rows & Top Movers, Dependency Race & Nicolas Khamis \\
-Visual polish & Palette, currency formatting, layout tuning & Nicolas Khamis \\
-Deployment & Render config, gunicorn, \texttt{.gitignore} whitelist & Nicolas Khamis \\
+Data acquisition \& EDA & Comtrade API, preprocessing pipeline, quality \& exploratory notebooks & Nicolas Khamis \\
+Multi-commodity pipeline & HS 10/72/84/87 downloads, schema unification, \texttt{build\_data.py} JSON & Nicolas Khamis \\
+D3 rewrite \& core views & Flask backend, choropleth, side panel, Sankey, history, dependency & Charbel Raffoul \\
+Signature M3 features & Disruption simulator (supply/demand), Trade Blocs, Trade Gravity & Charbel Raffoul \\
+Storytelling layer & Takeaway strip concept \& copy, missing-data handling, runnable workflow & Elyas El Khaldi \\
+Guided tour & 7-step scripted tour wiring the dashboard to the screencast & Nicolas \& Elyas \\
+Deployment \& repo & Render config, gunicorn, two-remote workflow, cleanup & Nicolas Khamis \\
+Screencast & Script, recording, voiceover, editing (2-min) & Kevin Drakebli \\
 Reports \& process book & M1 notes, M2 report, this process book & Nicolas \& Charbel \\
-Screencast & Script, recording, editing & {\color{muted}\itshape (M3, TBD)} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Project timeline}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[font=\scriptsize]
-  % Time axis
-  \draw[->, thick, accent] (0,0) -- (15.5,0);
-  \foreach \x/\m in {0/Mar, 3/Apr, 6/May, 9/Jun} {
-    \draw[accent] (\x,-0.1) -- (\x,0.1);
-    \node[below=2pt, accent] at (\x,0) {\m};
-  }
-  % Milestones
-  \node[above, accent, font=\scriptsize\bfseries] at (1.5,0.15) {M1};
-  \node[above, accent, font=\scriptsize\bfseries] at (4.7,0.15) {M2};
-  \node[above, accent, font=\scriptsize\bfseries] at (7.3,0.15) {M3};
-  \draw[dashed, accent] (1.5,-1.6) -- (1.5,0.1);
-  \draw[dashed, accent] (4.7,-1.6) -- (4.7,0.1);
-  \draw[dashed, accent] (7.3,-1.6) -- (7.3,0.1);
-  % Tasks
-  \fill[accent!70] (0.1,-0.5) rectangle (1.5,-0.2);
-  \node[right] at (1.6,-0.35) {\scriptsize Data acquisition + EDA};
-  \fill[accent!70] (1.5,-0.85) rectangle (3.6,-0.55);
-  \node[right] at (3.7,-0.7) {\scriptsize Prototype (choropleth + side panel)};
-  \fill[accent!70] (3.6,-1.2) rectangle (4.7,-0.9);
-  \node[right] at (4.8,-1.05) {\scriptsize Multi-commodity + Compare/Movers/Race};
-  \fill[warm!70] (4.7,-1.55) rectangle (7.3,-1.25);
-  \node[right] at (7.4,-1.4) {\scriptsize M3: disruption sim + screencast + polish};
-\end{tikzpicture}
-\end{figure}
 
 \begin{center}
 \small\color{muted}\itshape
