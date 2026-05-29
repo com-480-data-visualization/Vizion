@@ -4,13 +4,13 @@ Interactive visualization of global trade flows, dependencies, and
 disruptions across five commodity families (energy, cereals, steel,
 machinery, vehicles) using UN Comtrade data, 2000–2023.
 
-## Live Demo
-
-**[https://vizion-i8ez.onrender.com](https://vizion-i8ez.onrender.com)**
-
 ## Screencast
 
 **[https://youtu.be/44ZzzhC7nms](https://youtu.be/44ZzzhC7nms)**
+
+## Live Demo
+
+**[https://vizion-i8ez.onrender.com](https://vizion-i8ez.onrender.com)**
 
 > _Hosted on Render's free tier — the first request after a period of
 > inactivity may take **~30–60 seconds** to cold-start while the
