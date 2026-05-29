@@ -6,7 +6,7 @@ machinery, vehicles) using UN Comtrade data, 2000–2023.
 
 ## Live Demo
 
-**<https://vizion-lzz6.onrender.com>**
+**<[https://vizion-i8ez.onrender.com/](https://vizion-i8ez.onrender.com/)>**
 
 > _Hosted on Render's free tier — the first request after a period of
 > inactivity may take **~30–60 seconds** to cold-start while the
